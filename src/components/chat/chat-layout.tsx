@@ -1,19 +1,68 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 // SocketProvider removed
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatWindow } from "./chat-window";
 import { useChatStore } from "@/store/chat-store";
-import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export function ChatLayout() {
     const { data: session } = useSession();
-    const { activeChat, setActiveChat, chats, setChats } = useChatStore();
-    const { theme, setTheme } = useTheme();
+    const { activeChat, setActiveChat, chats } = useChatStore();
+    const [isLocked, setIsLocked] = useState(false);
+    const [masterPassword, setMasterPassword] = useState("");
+    const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const idleTimeoutMs = 60000;
+    const masterPasswordValue = "9";
+
+    const resetIdleTimer = useCallback(() => {
+        if (idleTimerRef.current) {
+            clearTimeout(idleTimerRef.current);
+        }
+
+        idleTimerRef.current = setTimeout(() => {
+            setIsLocked(true);
+        }, idleTimeoutMs);
+    }, []);
+
+    const handleUnlock = useCallback(() => {
+        if (masterPassword === masterPasswordValue) {
+            setIsLocked(false);
+            setMasterPassword("");
+            resetIdleTimer();
+            return;
+        }
+
+        setMasterPassword("");
+    }, [masterPassword, resetIdleTimer]);
+
+    useEffect(() => {
+        if (!session || isLocked) return;
+
+        const handleActivity = () => {
+            resetIdleTimer();
+        };
+
+        resetIdleTimer();
+        window.addEventListener("mousemove", handleActivity);
+        window.addEventListener("mousedown", handleActivity);
+        window.addEventListener("keydown", handleActivity);
+        window.addEventListener("touchstart", handleActivity);
+        window.addEventListener("scroll", handleActivity, { passive: true });
+
+        return () => {
+            if (idleTimerRef.current) {
+                clearTimeout(idleTimerRef.current);
+            }
+            window.removeEventListener("mousemove", handleActivity);
+            window.removeEventListener("mousedown", handleActivity);
+            window.removeEventListener("keydown", handleActivity);
+            window.removeEventListener("touchstart", handleActivity);
+            window.removeEventListener("scroll", handleActivity);
+        };
+    }, [session, isLocked, resetIdleTimer]);
 
     // 1. Initial Load & Deep Linking
     useEffect(() => {
@@ -76,6 +125,26 @@ export function ChatLayout() {
 
     return (
         <div className="flex h-[100dvh] overflow-hidden relative bg-background">
+            {isLocked && (
+                <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+                    <div className="w-full max-w-sm px-6 text-center space-y-4">
+                        <p className="text-white text-sm tracking-wide">Enter master password</p>
+                        <Input
+                            autoFocus
+                            type="password"
+                            value={masterPassword}
+                            onChange={(event) => setMasterPassword(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    handleUnlock();
+                                }
+                            }}
+                            className="bg-black text-white border-white/30 focus-visible:ring-white/40 focus-visible:ring-offset-black"
+                        />
+                        <p className="text-white/60 text-xs">Press Enter to unlock</p>
+                    </div>
+                </div>
+            )}
             {/* Sidebar - Hidden on mobile when chat is active */}
             <div className={`
                 flex-shrink-0 h-full border-r border-border/50 bg-card/50 backdrop-blur-sm
