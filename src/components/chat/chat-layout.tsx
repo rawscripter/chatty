@@ -24,7 +24,7 @@ function getStoredLockState(
 export function ChatLayout() {
     const { data: session } = useSession();
     const { activeChat, setActiveChat, chats } = useChatStore();
-    const idleTimeoutMs = 60000;
+    const idleTimeoutMs = 120000;
     const masterPasswordValue = "9";
     const idleLockKey = "chatty:idle-locked";
     const lastActivityKey = "chatty:last-activity";
