@@ -27,18 +27,25 @@ export const authConfig: NextAuthConfig = {
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
+            const isOnDashboard = nextUrl.pathname.startsWith("/profile") || nextUrl.pathname.startsWith("/chat");
             const isAuthPage =
                 nextUrl.pathname.startsWith("/login") ||
                 nextUrl.pathname.startsWith("/signup");
-            const isApiRoute = nextUrl.pathname.startsWith("/api");
 
-            if (isApiRoute) return true;
-            if (isAuthPage && isLoggedIn) {
-                return Response.redirect(new URL("/", nextUrl));
+            if (isAuthPage) {
+                // Allow access to auth pages even if logged in (to break potential redirect loops if session is invalid on server but valid in cookie)
+                // The Login page itself can handle redirecting to dashboard if the session is fully valid.
+                return true;
             }
-            if (!isAuthPage && !isLoggedIn) {
-                return Response.redirect(new URL("/login", nextUrl));
+
+            // If requesting a protected path (or root) and not logged in, redirect to login
+            // We'll treat root '/' as protected for this app based on previous behavior
+            const isProtected = nextUrl.pathname === "/" || isOnDashboard;
+
+            if (isProtected && !isLoggedIn) {
+                return false; // Redirect to login (handled by NextAuth)
             }
+
             return true;
         },
     },

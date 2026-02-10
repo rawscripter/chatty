@@ -9,7 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Laptop, Smartphone, Trash2, Globe } from "lucide-react";
+import { SessionManager } from "@/components/profile/session-manager";
 import { useChatStore } from "@/store/chat-store";
 
 function getInitials(name: string): string {
@@ -273,6 +274,10 @@ export default function ProfilePage() {
                             </Button>
                         </div>
                     </div>
+
+                    <Separator className="opacity-60" />
+
+                    <SessionManager />
                 </div>
             </div>
         </div>

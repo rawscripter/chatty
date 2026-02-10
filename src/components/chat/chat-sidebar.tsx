@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { CreateChatDialog } from "./create-chat-dialog";
-import { Search, Plus, Lock, Users, MessageSquare, LogOut, Settings, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Lock, Users, MessageSquare, LogOut, MoreHorizontal, User } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -256,9 +256,11 @@ export function ChatSidebar() {
                         <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuLabel>My Account</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer">
-                                <Settings className="w-4 h-4 mr-2" />
-                                <span>Settings</span>
+                            <DropdownMenuItem className="cursor-pointer" asChild>
+                                <Link href="/profile" className="flex items-center">
+                                    <User className="w-4 h-4 mr-2" />
+                                    <span>Profile</span>
+                                </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => signOut()}>
                                 <LogOut className="w-4 h-4 mr-2" />
