@@ -8,38 +8,92 @@ import { ChatWindow } from "./chat-window";
 import { useChatStore } from "@/store/chat-store";
 import { Input } from "@/components/ui/input";
 
+function getStoredLockState(
+    idleLockKey: string,
+    lastActivityKey: string,
+    idleTimeoutMs: number
+): boolean {
+    if (typeof window === "undefined") return false;
+    const lockedFlag = window.localStorage.getItem(idleLockKey) === "true";
+    const lastActivityRaw = window.localStorage.getItem(lastActivityKey);
+    const lastActivity = lastActivityRaw ? Number(lastActivityRaw) : null;
+    const isExpired = lastActivity ? Date.now() - lastActivity > idleTimeoutMs : false;
+    return lockedFlag || isExpired;
+}
+
 export function ChatLayout() {
     const { data: session } = useSession();
     const { activeChat, setActiveChat, chats } = useChatStore();
-    const [isLocked, setIsLocked] = useState(false);
-    const [masterPassword, setMasterPassword] = useState("");
-    const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimeoutMs = 60000;
     const masterPasswordValue = "9";
+    const idleLockKey = "chatty:idle-locked";
+    const lastActivityKey = "chatty:last-activity";
+    const [isLocked, setIsLocked] = useState(() =>
+        getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs)
+    );
+    const [masterPassword, setMasterPassword] = useState("");
+    const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const setLastActivity = useCallback((timestamp: number) => {
+        if (typeof window === "undefined") return;
+        window.localStorage.setItem(lastActivityKey, String(timestamp));
+    }, []);
+
+    const setLockedState = useCallback((locked: boolean) => {
+        if (typeof window === "undefined") return;
+        window.localStorage.setItem(idleLockKey, locked ? "true" : "false");
+    }, []);
 
     const resetIdleTimer = useCallback(() => {
         if (idleTimerRef.current) {
             clearTimeout(idleTimerRef.current);
         }
 
+        setLastActivity(Date.now());
+        setLockedState(false);
+
         idleTimerRef.current = setTimeout(() => {
             setIsLocked(true);
+            setLockedState(true);
         }, idleTimeoutMs);
-    }, []);
+    }, [setLastActivity, setLockedState]);
 
     const handleUnlock = useCallback(() => {
         if (masterPassword === masterPasswordValue) {
             setIsLocked(false);
             setMasterPassword("");
+            setLockedState(false);
+            setLastActivity(Date.now());
             resetIdleTimer();
             return;
         }
 
         setMasterPassword("");
-    }, [masterPassword, resetIdleTimer]);
+    }, [masterPassword, resetIdleTimer, setLastActivity, setLockedState]);
 
     useEffect(() => {
-        if (!session || isLocked) return;
+        if (!session) return;
+
+        const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
+        if (shouldLock) {
+            setIsLocked(true);
+            setLockedState(true);
+        } else {
+            setLockedState(false);
+        }
+    }, [session, setLockedState]);
+
+    useEffect(() => {
+        if (!session) return;
+
+        const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
+        if (shouldLock) {
+            setIsLocked(true);
+            setLockedState(true);
+            return;
+        }
+
+        if (isLocked) return;
 
         const handleActivity = () => {
             resetIdleTimer();
@@ -62,7 +116,7 @@ export function ChatLayout() {
             window.removeEventListener("touchstart", handleActivity);
             window.removeEventListener("scroll", handleActivity);
         };
-    }, [session, isLocked, resetIdleTimer]);
+    }, [session, isLocked, resetIdleTimer, setLockedState]);
 
     // 1. Initial Load & Deep Linking
     useEffect(() => {

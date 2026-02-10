@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Chat from "@/models/chat";
+import Message from "@/models/message";
 import { isChatUnlocked } from "@/lib/redis";
 
 // GET /api/chats/[chatId] - Get a single chat
@@ -45,6 +46,39 @@ export async function GET(
         });
     } catch (error) {
         console.error("Get chat error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+// DELETE /api/chats/[chatId] - Delete a chat and its messages
+export async function DELETE(
+    _req: Request,
+    { params }: { params: Promise<{ chatId: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { chatId } = await params;
+        await dbConnect();
+
+        const chat = await Chat.findOne({
+            _id: chatId,
+            participants: session.user.id,
+        });
+
+        if (!chat) {
+            return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+        }
+
+        await Message.deleteMany({ chat: chatId });
+        await Chat.deleteOne({ _id: chatId });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Delete chat error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

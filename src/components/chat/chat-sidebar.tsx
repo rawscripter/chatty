@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
 // import { useSocket } from "@/components/providers/socket-provider"; // Removed
 import { useChatStore } from "@/store/chat-store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { CreateChatDialog } from "./create-chat-dialog";
-import { Search, Plus, Lock, Users, MessageSquare } from "lucide-react";
+import { Search, Plus, Lock, Users, MessageSquare, User } from "lucide-react";
 import type { IChat, IUser } from "@/types";
 
 function getInitials(name: string): string {
@@ -74,13 +74,14 @@ export function ChatSidebar() {
         fetchChats();
     }, [fetchChats]);
 
+
     const filteredChats = chats.filter((chat) => {
         if (!search) return true;
         const name = getChatName(chat, session?.user?.id || "");
         return name.toLowerCase().includes(search.toLowerCase());
     });
 
-    const isOtherUserOnline = (chat: IChat): boolean => {
+    const isOtherUserOnline = (): boolean => {
         // Online status temporarily disabled
         return false;
     };
@@ -98,14 +99,25 @@ export function ChatSidebar() {
                             Chatty
                         </h1>
                     </div>
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setShowCreateDialog(true)}
-                        className="rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors"
-                    >
-                        <Plus className="w-5 h-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setShowCreateDialog(true)}
+                            className="rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </Button>
+                        <Link href="/profile" className="inline-flex">
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors"
+                            >
+                                <User className="w-5 h-5" />
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="relative">
@@ -170,7 +182,7 @@ export function ChatSidebar() {
                                                 )}
                                             </AvatarFallback>
                                         </Avatar>
-                                        {chat.type === "direct" && isOtherUserOnline(chat) && (
+                                        {chat.type === "direct" && isOtherUserOnline() && (
                                             <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-background shadow-sm shadow-emerald-500/50" />
                                         )}
                                     </div>

@@ -14,7 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Lock, MoreVertical, Users, Phone, Video, LogOut, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser } from "lucide-react";
 import type { IChat, IUser } from "@/types";
 
 interface ChatHeaderProps {
@@ -24,7 +24,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
-    const { setSidebarOpen, setActiveChat } = useChatStore();
+    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats } = useChatStore();
     const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
 
     const otherParticipant = chat.type === "direct"
@@ -91,6 +91,39 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
     } else {
         statusText = "Offline";
     }
+
+    const handleClearConversation = async () => {
+        const confirmed = window.confirm("Clear all messages in this conversation?");
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/chats/${chat._id}/clear`, { method: "POST" });
+            const data = await res.json();
+            if (data.success && data.data) {
+                setMessages([]);
+                updateChat(data.data);
+            }
+        } catch (error) {
+            console.error("Clear conversation error:", error);
+        }
+    };
+
+    const handleDeleteChat = async () => {
+        const confirmed = window.confirm("Delete this conversation? This cannot be undone.");
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/chats/${chat._id}`, { method: "DELETE" });
+            const data = await res.json();
+            if (data.success) {
+                setChats(chats.filter((item) => item._id !== chat._id));
+                setActiveChat(null);
+                setMessages([]);
+            }
+        } catch (error) {
+            console.error("Delete chat error:", error);
+        }
+    };
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
@@ -162,6 +195,20 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                         <DropdownMenuItem className="gap-2 cursor-pointer">
                             <Users className="w-4 h-4" />
                             Chat info
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={handleClearConversation}
+                        >
+                            <Eraser className="w-4 h-4" />
+                            Clear conversation
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            className="gap-2 cursor-pointer text-destructive"
+                            onClick={handleDeleteChat}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete conversation
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
