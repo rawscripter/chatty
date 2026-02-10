@@ -37,6 +37,7 @@ export function ChatWindow() {
     const [viewImage, setViewImage] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<IMessage[]>([]);
 
     // Fetch only messages (no lock check)
     const loadMessages = useCallback(async () => {
@@ -82,6 +83,10 @@ export function ChatWindow() {
         fetchMessages();
     }, [fetchMessages]);
 
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
+
     // Pusher Subscription & Event Handling
     useEffect(() => {
         if (!pusher || !activeChat) return;
@@ -121,9 +126,10 @@ export function ChatWindow() {
             userId: string;
             readAt: string;
         }) => {
+            const currentMessage = messagesRef.current.find((m) => m._id === data.messageId);
             updateMessage(data.messageId, {
                 readBy: [
-                    ...(messages.find((m) => m._id === data.messageId)?.readBy || []),
+                    ...(currentMessage?.readBy || []),
                     { user: data.userId, readAt: new Date(data.readAt) },
                 ],
             });
@@ -142,7 +148,7 @@ export function ChatWindow() {
             channel.unbind_all();
             pusher.unsubscribe(channelName);
         };
-    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, messages]);
+    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping]);
 
     // Auto-scroll to bottom
     useEffect(() => {
