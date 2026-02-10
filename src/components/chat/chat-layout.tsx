@@ -132,25 +132,31 @@ export function ChatLayout() {
         }
     }, [session, chats, activeChat, setActiveChat]);
 
+    // Track previous active chat to prevent URL synchronization loops
+    const prevActiveChatIdRef = useRef<string | null>(activeChat?._id || null);
+
     // 2. Handle URL updates when activeChat changes (User Click)
     useEffect(() => {
         if (!session) return;
-        const params = new URLSearchParams(window.location.search);
-        const currentChatId = params.get("chatId");
 
-        if (activeChat && activeChat._id !== currentChatId) {
-            // User selected a chat, push state
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set("chatId", activeChat._id);
-            window.history.pushState({ chatOpen: true }, "", newUrl.toString());
-        } else if (!activeChat && currentChatId) {
-            // User closed chat (programmatically), go back or replace?
-            // If we push null, we create a new history entry. 
-            // Better to go back if we can, or push to root.
-            // For stability, let's push to root.
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.delete("chatId");
-            window.history.pushState(null, "", newUrl.toString());
+        // Only sync if actual state changed (prevents race conditions with back button)
+        if (activeChat?._id !== prevActiveChatIdRef.current) {
+            const params = new URLSearchParams(window.location.search);
+            const currentChatId = params.get("chatId");
+
+            if (activeChat && activeChat._id !== currentChatId) {
+                // User selected a chat, push state
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set("chatId", activeChat._id);
+                window.history.pushState({ chatOpen: true }, "", newUrl.toString());
+            } else if (!activeChat && currentChatId) {
+                // User closed chat (programmatically), go back or replace
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete("chatId");
+                window.history.replaceState(null, "", newUrl.toString());
+            }
+
+            prevActiveChatIdRef.current = activeChat?._id || null;
         }
     }, [session, activeChat]);
 
@@ -201,8 +207,8 @@ export function ChatLayout() {
             )}
             {/* Sidebar - Hidden on mobile when chat is active */}
             <div className={`
-                flex-shrink-0 h-full border-r border-border/50 bg-card/50 backdrop-blur-sm
-                ${activeChat ? 'hidden md:flex md:w-[340px]' : 'w-full md:w-[340px] flex'}
+                flex-shrink-0 h-full lg:border-r border-border/50 bg-background lg:bg-card/50 lg:backdrop-blur-sm
+                ${activeChat ? 'hidden lg:flex lg:w-[340px]' : 'w-full lg:w-[340px]'}
             `}>
                 <ChatSidebar />
             </div>
@@ -210,7 +216,7 @@ export function ChatLayout() {
             {/* Chat Window - Hidden on mobile when no chat active */}
             <div className={`
                 flex-1 flex-col min-w-0 h-full
-                ${activeChat ? 'flex' : 'hidden md:flex'}
+                ${activeChat ? 'flex' : 'hidden lg:flex'}
             `}>
                 <ChatWindow />
             </div>

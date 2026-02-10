@@ -56,7 +56,11 @@ export const useChatStore = create<ChatStore>((set) => ({
     chats: [],
     activeChat: null,
     setChats: (chats) => set({ chats }),
-    setActiveChat: (chat) => set({ activeChat: chat, messages: [] }),
+    setActiveChat: (chat) =>
+        set((state) => {
+            if (state.activeChat?._id === chat?._id) return state;
+            return { activeChat: chat, messages: [] };
+        }),
     updateChat: (updatedChat) =>
         set((state) => ({
             chats: state.chats.map((c) =>

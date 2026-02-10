@@ -183,7 +183,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             <DropdownMenuTrigger asChild>
                                 <button
                                     type="button"
-                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
                                     aria-label="Message actions"
                                 >
                                     <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />

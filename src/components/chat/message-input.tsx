@@ -9,6 +9,13 @@ import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 import { CameraCapture } from "./camera-capture";
 import { GifPicker } from "./gif-picker";
+import { Plus } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import type { IMessage } from "@/types";
 
@@ -326,47 +333,84 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     className="hidden"
                 />
 
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => fileRef.current?.click()}
-                    className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
-                    disabled={uploading}
-                >
-                    <ImageIcon className="w-5 h-5" />
-                </Button>
+                {/* Desktop: Show all buttons inline */}
+                <div className="hidden md:flex items-center gap-1">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => fileRef.current?.click()}
+                        className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
+                        disabled={uploading}
+                    >
+                        <ImageIcon className="w-5 h-5" />
+                    </Button>
 
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setShowGifPicker(true)}
-                    className="rounded-full flex-shrink-0 hover:bg-rose-500/10 hover:text-rose-500"
-                    disabled={uploading}
-                >
-                    <Sparkles className="w-5 h-5" />
-                </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setShowGifPicker(true)}
+                        className="rounded-full flex-shrink-0 hover:bg-rose-500/10 hover:text-rose-500"
+                        disabled={uploading}
+                    >
+                        <Sparkles className="w-5 h-5" />
+                    </Button>
 
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setShowCamera(true)}
-                    className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
-                    disabled={uploading}
-                >
-                    <Camera className="w-5 h-5" />
-                </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setShowCamera(true)}
+                        className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
+                        disabled={uploading}
+                    >
+                        <Camera className="w-5 h-5" />
+                    </Button>
 
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setShowOptions(!showOptions)}
-                    className={`rounded-full flex-shrink-0 transition-colors ${showOptions || selfDestruct
-                        ? "bg-amber-500/10 text-amber-500"
-                        : "hover:bg-muted/50"
-                        }`}
-                >
-                    <Clock className="w-5 h-5" />
-                </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setShowOptions(!showOptions)}
+                        className={`rounded-full flex-shrink-0 transition-colors ${showOptions || selfDestruct
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "hover:bg-muted/50"
+                            }`}
+                    >
+                        <Clock className="w-5 h-5" />
+                    </Button>
+                </div>
+
+                {/* Mobile: Show Plus button with Dropdown */}
+                <div className="md:hidden">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="rounded-full flex-shrink-0 hover:bg-muted/50"
+                                disabled={uploading}
+                            >
+                                <Plus className="w-5 h-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="mb-2 w-48 bg-card/95 backdrop-blur-sm">
+                            <DropdownMenuItem onClick={() => fileRef.current?.click()} className="gap-2 cursor-pointer">
+                                <ImageIcon className="w-4 h-4" />
+                                <span>Photo</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowGifPicker(true)} className="gap-2 cursor-pointer">
+                                <Sparkles className="w-4 h-4" />
+                                <span>GIF / Sticker</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowCamera(true)} className="gap-2 cursor-pointer">
+                                <Camera className="w-4 h-4" />
+                                <span>Camera</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowOptions(!showOptions)} className="gap-2 cursor-pointer">
+                                <Clock className="w-4 h-4" />
+                                <span>Self Destruct</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
 
                 {/* Emoji picker */}
                 <div className="relative" ref={emojiPickerRef}>
