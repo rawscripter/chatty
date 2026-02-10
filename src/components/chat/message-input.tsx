@@ -28,7 +28,7 @@ interface MessageInputProps {
         type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
-        gifCategory?: "kissing" | "hug" | "romance";
+        gifCategory?: "kissing" | "hug" | "romance" | "adult";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
         replyTo?: string;
@@ -40,7 +40,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isViewOnce, setIsViewOnce] = useState(false);
-    const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance">("kissing");
+    const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance" | "adult">("kissing");
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
     const [showOptions, setShowOptions] = useState(false);
@@ -184,7 +184,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
         if (fileRef.current) fileRef.current.value = "";
     };
 
-    const handleGifSelect = (gifUrl: string, category: "kissing" | "hug" | "romance") => {
+    const handleGifSelect = (gifUrl: string, category: "kissing" | "hug" | "romance" | "adult") => {
         onSendMessage({
             content: message.trim() || "",
             type: "gif",
@@ -275,7 +275,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             ) : (
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">GIF category:</span>
-                                    {(["kissing", "hug", "romance"] as const).map((category) => (
+                                    {(["kissing", "hug", "romance", "adult"] as const).map((category) => (
                                         <button
                                             type="button"
                                             key={category}

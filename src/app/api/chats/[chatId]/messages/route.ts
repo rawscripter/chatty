@@ -121,7 +121,7 @@ export async function POST(
         }
 
         if (type === "gif") {
-            const allowedCategories = ["kissing", "hug", "romance"];
+            const allowedCategories = ["kissing", "hug", "romance", "adult"];
             const resolvedCategory = allowedCategories.includes(gifCategory)
                 ? gifCategory
                 : "kissing";

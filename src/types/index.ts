@@ -34,7 +34,7 @@ export interface IChat {
 // ─── Message ────────────────────────────────────────
 export type MessageType = "text" | "image" | "gif" | "system";
 
-export type GifCategory = "kissing" | "hug" | "romance";
+export type GifCategory = "kissing" | "hug" | "romance" | "adult";
 
 export interface IReadReceipt {
   user: string | IUser;

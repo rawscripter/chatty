@@ -334,7 +334,7 @@ export function ChatWindow() {
         type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
-        gifCategory?: "kissing" | "hug" | "romance";
+        gifCategory?: "kissing" | "hug" | "romance" | "adult";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
         replyTo?: string;
