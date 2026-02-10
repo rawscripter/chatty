@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Chat from "@/models/chat";
 import Message from "@/models/message";
-import { isChatUnlocked } from "@/lib/redis";
+import { isChatUnlocked, setChatUnlocked } from "@/lib/redis";
 
 // GET /api/chats/[chatId] - Get a single chat
 export async function GET(
@@ -35,6 +36,17 @@ export async function GET(
         let isUnlocked = true;
         if (chat.isPasswordProtected) {
             isUnlocked = await isChatUnlocked(session.user.id, chatId);
+
+            // If not unlocked in Redis, check cookie
+            if (!isUnlocked) {
+                const cookieStore = await cookies();
+                const unlockCookie = cookieStore.get(`chat_unlock:${chatId}`);
+                if (unlockCookie?.value === "1") {
+                    isUnlocked = true;
+                    // Refresh Redis cache if cookie is valid
+                    await setChatUnlocked(session.user.id, chatId, 1800);
+                }
+            }
         }
 
         return NextResponse.json({

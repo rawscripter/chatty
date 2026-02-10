@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
@@ -52,6 +53,16 @@ export async function POST(
 
         // Cache unlock state for 30 minutes
         await setChatUnlocked(session.user.id, chatId, 1800);
+
+        // Also set a cookie for 1 hour
+        const cookieStore = await cookies();
+        cookieStore.set(`chat_unlock:${chatId}`, "1", {
+            maxAge: 3600,
+            path: "/",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+        });
 
         return NextResponse.json({ success: true, message: "Chat unlocked" });
     } catch (error) {
