@@ -104,7 +104,8 @@ export function ChatWindow() {
                         item.type === message.type &&
                         item.content === message.content &&
                         item.imageUrl === message.imageUrl &&
-                        item.isViewOnce === message.isViewOnce
+                        item.isViewOnce === message.isViewOnce &&
+                        item.gifCategory === message.gifCategory
                 );
 
                 if (tempMatch) {
@@ -167,15 +168,18 @@ export function ChatWindow() {
 
     // Auto-scroll to bottom
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+        if (messages.length > 0) {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages.length]);
 
     // Send message handler
     const handleSendMessage = async (data: {
         content: string;
-        type: "text" | "image";
+        type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
+        gifCategory?: "kissing" | "hug" | "romance";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
     }) => {
@@ -201,6 +205,7 @@ export function ChatWindow() {
             content: data.content,
             type: data.type,
             imageUrl: data.imageUrl,
+            gifCategory: data.gifCategory,
             isViewOnce: data.isViewOnce || false,
             viewOnceViewed: false,
             viewedBy: [],

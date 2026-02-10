@@ -27,3 +27,6 @@ export const uploadRateLimit = createRateLimiter(10, "1 m");
 
 // 5 login attempts per minute
 export const authRateLimit = createRateLimiter(5, "1 m");
+
+// 20 GIF searches per minute
+export const gifRateLimit = createRateLimiter(20, "1 m");

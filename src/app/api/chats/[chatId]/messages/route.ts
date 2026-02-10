@@ -89,10 +89,14 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { content, type = "text", imageUrl, cloudinaryPublicId, isViewOnce, selfDestructMinutes } = body;
+        const { content, type = "text", imageUrl, cloudinaryPublicId, gifCategory, isViewOnce, selfDestructMinutes } = body;
 
         if (type === "text" && (!content || !content.trim())) {
             return NextResponse.json({ error: "Message content is required" }, { status: 400 });
+        }
+
+        if ((type === "image" || type === "gif") && !imageUrl) {
+            return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
         }
 
         const messageData: Record<string, unknown> = {
@@ -107,6 +111,17 @@ export async function POST(
             messageData.imageUrl = imageUrl;
             messageData.cloudinaryPublicId = cloudinaryPublicId;
             messageData.isViewOnce = isViewOnce || false;
+        }
+
+        if (type === "gif") {
+            const allowedCategories = ["kissing", "hug", "romance"];
+            const resolvedCategory = allowedCategories.includes(gifCategory)
+                ? gifCategory
+                : "kissing";
+            messageData.imageUrl = imageUrl;
+            messageData.cloudinaryPublicId = cloudinaryPublicId;
+            messageData.gifCategory = resolvedCategory;
+            messageData.isViewOnce = false;
         }
 
         if (selfDestructMinutes && selfDestructMinutes > 0) {

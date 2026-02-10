@@ -32,7 +32,9 @@ export interface IChat {
 }
 
 // ─── Message ────────────────────────────────────────
-export type MessageType = "text" | "image" | "system";
+export type MessageType = "text" | "image" | "gif" | "system";
+
+export type GifCategory = "kissing" | "hug" | "romance";
 
 export interface IReadReceipt {
   user: string | IUser;
@@ -52,6 +54,7 @@ export interface IMessage {
   type: MessageType;
   imageUrl?: string;
   cloudinaryPublicId?: string;
+  gifCategory?: GifCategory;
   isViewOnce: boolean;
   viewOnceViewed: boolean;
   viewedBy: IViewRecord[];
@@ -73,7 +76,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  "message:send": (data: { chatId: string; content: string; type: MessageType; imageUrl?: string; cloudinaryPublicId?: string; isViewOnce?: boolean; selfDestructMinutes?: number }) => void;
+  "message:send": (data: { chatId: string; content: string; type: MessageType; imageUrl?: string; cloudinaryPublicId?: string; gifCategory?: GifCategory; isViewOnce?: boolean; selfDestructMinutes?: number }) => void;
   "message:read": (data: { messageId: string; chatId: string }) => void;
   "typing:start": (data: { chatId: string }) => void;
   "typing:stop": (data: { chatId: string }) => void;

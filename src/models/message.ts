@@ -4,9 +4,10 @@ export interface IMessageDocument extends mongoose.Document {
     chat: mongoose.Types.ObjectId;
     sender: mongoose.Types.ObjectId;
     content: string;
-    type: "text" | "image" | "system";
+    type: "text" | "image" | "gif" | "system";
     imageUrl?: string;
     cloudinaryPublicId?: string;
+    gifCategory?: "kissing" | "hug" | "romance";
     isViewOnce: boolean;
     viewOnceViewed: boolean;
     viewedBy: { user: mongoose.Types.ObjectId; viewedAt: Date }[];
@@ -36,11 +37,15 @@ const MessageSchema = new Schema<IMessageDocument>(
         },
         type: {
             type: String,
-            enum: ["text", "image", "system"],
+            enum: ["text", "image", "gif", "system"],
             default: "text",
         },
         imageUrl: String,
         cloudinaryPublicId: String,
+        gifCategory: {
+            type: String,
+            enum: ["kissing", "hug", "romance"],
+        },
         isViewOnce: {
             type: Boolean,
             default: false,

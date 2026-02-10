@@ -4,18 +4,20 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon, X, Eye, Clock, Loader2, Smile, Camera } from "lucide-react";
+import { Send, Image as ImageIcon, X, Eye, Clock, Loader2, Smile, Camera, Sparkles } from "lucide-react";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 import { CameraCapture } from "./camera-capture";
+import { GifPicker } from "./gif-picker";
 
 interface MessageInputProps {
     chatId: string;
     onSendMessage: (data: {
         content: string;
-        type: "text" | "image";
+        type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
+        gifCategory?: "kissing" | "hug" | "romance";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
     }) => void;
@@ -26,6 +28,8 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isViewOnce, setIsViewOnce] = useState(false);
+    const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance">("kissing");
+    const [showGifPicker, setShowGifPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
     const [showOptions, setShowOptions] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -103,6 +107,8 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
     const handleImageSend = async () => {
         if (!imageFile) return;
 
+        const isGif = imageFile.type === "image/gif";
+
         setUploading(true);
         try {
             const formData = new FormData();
@@ -118,10 +124,11 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
             if (data.success) {
                 onSendMessage({
                     content: message.trim() || "",
-                    type: "image",
+                    type: isGif ? "gif" : "image",
                     imageUrl: data.data.url,
                     cloudinaryPublicId: data.data.publicId,
-                    isViewOnce,
+                    gifCategory: isGif ? gifCategory : undefined,
+                    isViewOnce: isGif ? false : isViewOnce,
                 });
 
                 clearImage();
@@ -144,6 +151,10 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
         }
 
         setImageFile(file);
+        if (file.type === "image/gif") {
+            setGifCategory("kissing");
+            setIsViewOnce(false);
+        }
         const reader = new FileReader();
         reader.onloadend = () => setImagePreview(reader.result as string);
         reader.readAsDataURL(file);
@@ -153,7 +164,21 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
         setImagePreview(null);
         setImageFile(null);
         setIsViewOnce(false);
+        setGifCategory("kissing");
         if (fileRef.current) fileRef.current.value = "";
+    };
+
+    const handleGifSelect = (gifUrl: string, category: "kissing" | "hug" | "romance") => {
+        onSendMessage({
+            content: message.trim() || "",
+            type: "gif",
+            imageUrl: gifUrl,
+            gifCategory: category,
+            isViewOnce: false,
+        });
+        setMessage("");
+        setShowEmojiPicker(false);
+        setShowGifPicker(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -181,23 +206,43 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
                                 className="h-32 rounded-xl object-cover border border-border/50"
                             />
                             <button
+                                type="button"
                                 onClick={clearImage}
                                 className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-lg"
                             >
                                 <X className="w-3 h-3" />
                             </button>
                         </div>
-                        <div className="flex items-center gap-3 mt-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={isViewOnce}
-                                    onChange={(e) => setIsViewOnce(e.target.checked)}
-                                    className="rounded"
-                                />
-                                <Eye className="w-4 h-4 text-amber-500" />
-                                <span className="text-muted-foreground">View once</span>
-                            </label>
+                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                            {imageFile?.type !== "image/gif" ? (
+                                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={isViewOnce}
+                                        onChange={(e) => setIsViewOnce(e.target.checked)}
+                                        className="rounded"
+                                    />
+                                    <Eye className="w-4 h-4 text-amber-500" />
+                                    <span className="text-muted-foreground">View once</span>
+                                </label>
+                            ) : (
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-muted-foreground">GIF category:</span>
+                                    {(["kissing", "hug", "romance"] as const).map((category) => (
+                                        <button
+                                            type="button"
+                                            key={category}
+                                            onClick={() => setGifCategory(category)}
+                                            className={`px-2 py-1 rounded-lg text-xs transition-colors ${gifCategory === category
+                                                ? "bg-rose-500/20 text-rose-500 font-medium"
+                                                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                                }`}
+                                        >
+                                            {category === "kissing" ? "Kissing" : category === "hug" ? "Hug" : "Romance"}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -216,6 +261,7 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
                         <span className="text-muted-foreground">Self-destruct:</span>
                         {[0, 5, 30, 60].map((mins) => (
                             <button
+                                type="button"
                                 key={mins}
                                 onClick={() => setSelfDestruct(mins)}
                                 className={`px-2 py-1 rounded-lg text-xs transition-colors ${selfDestruct === mins
@@ -248,6 +294,16 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
                     disabled={uploading}
                 >
                     <ImageIcon className="w-5 h-5" />
+                </Button>
+
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setShowGifPicker(true)}
+                    className="rounded-full flex-shrink-0 hover:bg-rose-500/10 hover:text-rose-500"
+                    disabled={uploading}
+                >
+                    <Sparkles className="w-5 h-5" />
                 </Button>
 
                 <Button
@@ -352,7 +408,12 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
                     reader.readAsDataURL(file);
                 }}
             />
+
+            <GifPicker
+                open={showGifPicker}
+                onOpenChange={setShowGifPicker}
+                onSelect={handleGifSelect}
+            />
         </div>
     );
 }
-

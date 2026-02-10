@@ -20,13 +20,18 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
     {
         message.type === "image" && !message.isViewOnce && message.imageUrl && (
             <div className="mb-1">
-                <img
-                    src={message.imageUrl}
-                    alt="Shared image"
-                    className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                    loading="lazy"
+                <button
+                    type="button"
                     onClick={() => onImageClick?.(message.imageUrl!)}
-                />
+                    className="rounded-lg overflow-hidden"
+                >
+                    <img
+                        src={message.imageUrl}
+                        alt="Shared media"
+                        className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                        loading="lazy"
+                    />
+                </button>
             </div>
         )
     }
@@ -89,6 +94,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
                     {/* View-once image */}
                     {message.type === "image" && message.isViewOnce && !message.viewOnceViewed && (
                         <button
+                            type="button"
                             onClick={() => !isMine && onViewOnce?.(message._id)}
                             disabled={isMine}
                             className={`flex items-center gap-2 py-2 px-1 rounded-lg transition-colors ${isMine
@@ -125,11 +131,8 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
                     {/* Regular image */}
                     {message.type === "image" && !message.isViewOnce && message.imageUrl && (
                         <div className="mb-1">
-                            <img
-                                src={message.imageUrl}
-                                alt="Shared image"
-                                className="rounded-lg max-w-full max-h-64 object-cover"
-                                loading="lazy"
+                            <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     console.log("Image clicked:", message.imageUrl);
@@ -139,7 +142,48 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
                                         console.warn("onImageClick prop is missing");
                                     }
                                 }}
-                            />
+                                className="rounded-lg overflow-hidden"
+                            >
+                                <img
+                                    src={message.imageUrl}
+                                    alt="Shared media"
+                                    className="rounded-lg max-w-full max-h-64 object-cover"
+                                    loading="lazy"
+                                />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* GIF */}
+                    {message.type === "gif" && message.imageUrl && (
+                        <div className="mb-1">
+                            <div className="relative inline-block">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onImageClick) {
+                                            onImageClick(message.imageUrl!);
+                                        }
+                                    }}
+                                    className="rounded-lg overflow-hidden"
+                                >
+                                    <img
+                                        src={message.imageUrl}
+                                        alt="Shared GIF"
+                                        className="rounded-lg max-w-full max-h-64 object-cover"
+                                        loading="lazy"
+                                    />
+                                </button>
+                                <span
+                                    className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full ${isMine
+                                        ? "bg-white/20 text-white"
+                                        : "bg-rose-500/20 text-rose-600"
+                                        }`}
+                                >
+                                    GIF · {message.gifCategory === "hug" ? "Hug" : message.gifCategory === "romance" ? "Romance" : "Kissing"}
+                                </span>
+                            </div>
                         </div>
                     )}
 
