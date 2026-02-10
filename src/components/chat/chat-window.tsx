@@ -26,6 +26,7 @@ export function ChatWindow() {
         addMessage,
         updateMessage,
         removeMessage,
+        replaceMessage,
         typingUsers,
         setTyping,
     } = useChatStore();
@@ -95,12 +96,26 @@ export function ChatWindow() {
         const channel = pusher.subscribe(channelName);
 
         const handleNewMessage = (message: IMessage) => {
-            // Optimistic updates might have already added it found by ID?
-            // Zustand store's addMessage should likely handle duplicates by ID
+            const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+            if (senderId === session?.user?.id) {
+                const tempMatch = messagesRef.current.find(
+                    (item) =>
+                        item._id.startsWith("temp-") &&
+                        item.type === message.type &&
+                        item.content === message.content &&
+                        item.imageUrl === message.imageUrl &&
+                        item.isViewOnce === message.isViewOnce
+                );
+
+                if (tempMatch) {
+                    replaceMessage(tempMatch._id, message);
+                    return;
+                }
+            }
+
             addMessage(message);
 
             // Mark as read
-            const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
             if (senderId !== session?.user?.id) {
                 fetch(`/api/chats/${activeChat._id}/read`, {
                     method: "POST",
@@ -148,7 +163,7 @@ export function ChatWindow() {
             channel.unbind_all();
             pusher.unsubscribe(channelName);
         };
-    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping]);
+    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -209,12 +224,7 @@ export function ChatWindow() {
             const result = await res.json();
 
             if (result.success) {
-                // Remove temp message and let the real one take its place
-                // (Or strictly replace it to maintain position if sorting by ID/Time)
-                // Since we addMessage, if the real one comes via Pusher before this returns, 
-                // we might have duplicates if we don't clear the temp one.
-                removeMessage(tempId);
-                addMessage(result.data);
+                replaceMessage(tempId, result.data);
             } else {
                 // Failed, remove temp message and show error
                 removeMessage(tempId);

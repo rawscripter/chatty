@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { IChat, IMessage, IUser } from "@/types";
+import type { IChat, IMessage } from "@/types";
 
 interface TypingUser {
     userId: string;
@@ -21,6 +21,7 @@ interface ChatStore {
     addMessage: (message: IMessage) => void;
     updateMessage: (messageId: string, updates: Partial<IMessage>) => void;
     removeMessage: (messageId: string) => void;
+    replaceMessage: (messageId: string, message: IMessage) => void;
 
     // Typing
     typingUsers: Map<string, TypingUser[]>;
@@ -31,7 +32,7 @@ interface ChatStore {
     setSidebarOpen: (open: boolean) => void;
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
+export const useChatStore = create<ChatStore>((set) => ({
     // Chats
     chats: [],
     activeChat: null,
@@ -73,6 +74,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set((state) => ({
             messages: state.messages.filter((m) => m._id !== messageId),
         })),
+    replaceMessage: (messageId, message) =>
+        set((state) => {
+            const exists = state.messages.some((m) => m._id === message._id);
+            const replaced = state.messages.some((m) => m._id === messageId);
+
+            if (exists) {
+                return state;
+            }
+
+            if (replaced) {
+                return {
+                    messages: state.messages.map((m) =>
+                        m._id === messageId ? message : m
+                    ),
+                };
+            }
+
+            return { messages: [...state.messages, message] };
+        }),
 
     // Typing
     typingUsers: new Map(),
