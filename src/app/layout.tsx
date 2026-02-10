@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PusherProvider } from "@/components/providers/pusher-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,9 +34,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <TooltipProvider>
-              {children}
-            </TooltipProvider>
+            <PusherProvider>
+              <TooltipProvider>
+                {children}
+              </TooltipProvider>
+            </PusherProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

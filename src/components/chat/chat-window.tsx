@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { AnimatePresence } from "framer-motion";
-import { useSocket } from "@/components/providers/socket-provider";
+import { usePusher } from "@/components/providers/pusher-provider";
 import { useChatStore } from "@/store/chat-store";
 import { ChatHeader } from "./chat-header";
 import { MessageBubble } from "./message-bubble";
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 
 export function ChatWindow() {
     const { data: session } = useSession();
-    const { socket } = useSocket();
+    const { pusher } = usePusher();
     const {
         activeChat,
         messages,
@@ -36,10 +36,6 @@ export function ChatWindow() {
     const [viewImage, setViewImage] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        console.log("viewImage state changed:", viewImage);
-    }, [viewImage]);
 
     // Fetch only messages (no lock check)
     const loadMessages = useCallback(async () => {
@@ -85,28 +81,24 @@ export function ChatWindow() {
         fetchMessages();
     }, [fetchMessages]);
 
-    // Join chat room
+    // Pusher Subscription & Event Handling
     useEffect(() => {
-        if (!socket || !activeChat) return;
+        if (!pusher || !activeChat) return;
 
-        socket.emit("chat:join", activeChat._id);
-
-        return () => {
-            socket.emit("chat:leave", activeChat._id);
-        };
-    }, [socket, activeChat]);
-
-    // Listen for new messages
-    useEffect(() => {
-        if (!socket) return;
+        const channelName = `chat-${activeChat._id}`;
+        const channel = pusher.subscribe(channelName);
 
         const handleNewMessage = (message: IMessage) => {
+            // Optimistic updates might have already added it found by ID?
+            // Zustand store's addMessage should likely handle duplicates by ID
             addMessage(message);
+
             // Mark as read
-            if (activeChat) {
-                socket.emit("message:read", {
-                    messageId: message._id,
-                    chatId: activeChat._id,
+            if ((message.sender as any)._id !== session?.user?.id) {
+                fetch(`/api/chats/${activeChat._id}/read`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ messageId: message._id }),
                 });
             }
         };
@@ -139,18 +131,16 @@ export function ChatWindow() {
             updateMessage(data.messageId, { viewOnceViewed: true, imageUrl: undefined });
         };
 
-        socket.on("message:new", handleNewMessage);
-        socket.on("typing:update", handleTyping);
-        socket.on("message:read", handleReadReceipt);
-        socket.on("message:viewed-once", handleViewedOnce);
+        channel.bind("message:new", handleNewMessage);
+        channel.bind("typing:update", handleTyping);
+        channel.bind("message:read", handleReadReceipt);
+        channel.bind("message:viewed-once", handleViewedOnce);
 
         return () => {
-            socket.off("message:new", handleNewMessage);
-            socket.off("typing:update", handleTyping);
-            socket.off("message:read", handleReadReceipt);
-            socket.off("message:viewed-once", handleViewedOnce);
+            channel.unbind_all();
+            pusher.unsubscribe(channelName);
         };
-    }, [socket, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, messages]);
+    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, messages]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -172,18 +162,16 @@ export function ChatWindow() {
             const res = await fetch(`/api/chats/${activeChat._id}/messages`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
+                body: JSON.stringify({
+                    ...data,
+                    socketId: pusher?.connection.socket_id // Prevent duplicate echo if server implements it
+                }),
             });
 
             const result = await res.json();
 
             if (result.success) {
                 addMessage(result.data);
-                // Emit via socket for real-time delivery
-                socket?.emit("message:send", {
-                    chatId: activeChat._id,
-                    ...result.data,
-                });
             }
         } catch (error) {
             console.error("Failed to send message:", error);

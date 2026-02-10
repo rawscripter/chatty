@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
-import { useSocket } from "@/components/providers/socket-provider";
+import { usePusher } from "@/components/providers/pusher-provider";
 import { useChatStore } from "@/store/chat-store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,15 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
-    const { onlineUsers, isConnected } = useSocket();
+    const { isConnected } = usePusher();
     const { setSidebarOpen, setActiveChat } = useChatStore();
 
     const otherParticipant = chat.type === "direct"
         ? (chat.participants as IUser[]).find((p) => p._id !== session?.user?.id)
         : null;
 
-    const isOnline = otherParticipant ? onlineUsers.has(otherParticipant._id) : false;
+    // Online status temporarily removed until Pusher Presence is implemented
+    const isOnline = false;
 
     const chatName = chat.type === "group"
         ? chat.name || "Group Chat"
@@ -37,9 +38,7 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
 
     const statusText = chat.type === "group"
         ? `${(chat.participants as IUser[]).length} members`
-        : isOnline
-            ? "Online"
-            : "Offline";
+        : isConnected ? "Connected" : "Reconnecting...";
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
@@ -62,8 +61,8 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                     <Avatar className="w-10 h-10 border-2 border-background">
                         <AvatarFallback
                             className={`text-sm font-bold ${chat.type === "group"
-                                    ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
-                                    : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+                                ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
+                                : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
                                 }`}
                         >
                             {chat.type === "group" ? (

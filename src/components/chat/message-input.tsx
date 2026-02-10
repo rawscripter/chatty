@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Image as ImageIcon, X, Eye, Clock, Loader2, Smile, Camera } from "lucide-react";
-import { useSocket } from "@/components/providers/socket-provider";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 import { CameraCapture } from "./camera-capture";
@@ -23,7 +22,6 @@ interface MessageInputProps {
 }
 
 export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
-    const { socket } = useSocket();
     const [message, setMessage] = useState("");
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -55,17 +53,25 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
     };
 
     const handleTyping = useCallback(() => {
-        if (!socket) return;
-        socket.emit("typing:start", { chatId });
+        // Debounce typing indicator via API
+        fetch(`/api/chats/${chatId}/typing`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isTyping: true }),
+        });
 
         if (typingTimeout.current) {
             clearTimeout(typingTimeout.current);
         }
 
         typingTimeout.current = setTimeout(() => {
-            socket.emit("typing:stop", { chatId });
+            fetch(`/api/chats/${chatId}/typing`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isTyping: false }),
+            });
         }, 2000);
-    }, [socket, chatId]);
+    }, [chatId]);
 
     const handleSend = async () => {
         if (imageFile) {
@@ -84,7 +90,14 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
         setMessage("");
         setSelfDestruct(0);
         setShowEmojiPicker(false);
-        socket?.emit("typing:stop", { chatId });
+
+        // Stop typing
+        if (typingTimeout.current) clearTimeout(typingTimeout.current);
+        fetch(`/api/chats/${chatId}/typing`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isTyping: false }),
+        });
     };
 
     const handleImageSend = async () => {

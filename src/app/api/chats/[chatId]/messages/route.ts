@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db";
 import Chat from "@/models/chat";
 import Message from "@/models/message";
 import { messageRateLimit } from "@/lib/rate-limit";
+import { pusherServer } from "@/lib/pusher";
 
 // GET /api/chats/[chatId]/messages - Get messages for a chat
 export async function GET(
@@ -120,6 +121,9 @@ export async function POST(
         const populatedMessage = await Message.findById(message._id)
             .populate("sender", "name email avatar")
             .lean();
+
+        // Trigger Pusher event
+        await pusherServer.trigger(`chat-${chatId}`, "message:new", populatedMessage);
 
         return NextResponse.json({ success: true, data: populatedMessage }, { status: 201 });
     } catch (error) {

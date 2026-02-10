@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
-import { useSocket } from "@/components/providers/socket-provider";
+// import { useSocket } from "@/components/providers/socket-provider"; // Removed
 import { useChatStore } from "@/store/chat-store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,7 @@ function getChatAvatar(chat: IChat, currentUserId: string): string {
 
 export function ChatSidebar() {
     const { data: session } = useSession();
-    const { onlineUsers } = useSocket();
+    // const { onlineUsers } = useSocket(); // Removed
     const { chats, setChats, activeChat, setActiveChat } = useChatStore();
     const [search, setSearch] = useState("");
     const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -81,11 +81,8 @@ export function ChatSidebar() {
     });
 
     const isOtherUserOnline = (chat: IChat): boolean => {
-        if (chat.type === "group") return false;
-        const otherParticipant = (chat.participants as IUser[]).find(
-            (p) => p._id !== session?.user?.id
-        );
-        return otherParticipant ? onlineUsers.has(otherParticipant._id) : false;
+        // Online status temporarily disabled
+        return false;
     };
 
     return (
@@ -153,8 +150,8 @@ export function ChatSidebar() {
                                     transition={{ delay: index * 0.05 }}
                                     onClick={() => setActiveChat(chat)}
                                     className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group ${activeChat?._id === chat._id
-                                            ? "bg-emerald-500/10 border border-emerald-500/20"
-                                            : "hover:bg-muted/50 border border-transparent"
+                                        ? "bg-emerald-500/10 border border-emerald-500/20"
+                                        : "hover:bg-muted/50 border border-transparent"
                                         }`}
                                 >
                                     {/* Avatar */}
@@ -162,8 +159,8 @@ export function ChatSidebar() {
                                         <Avatar className="w-12 h-12 border-2 border-background shadow-sm">
                                             <AvatarFallback
                                                 className={`text-sm font-semibold ${chat.type === "group"
-                                                        ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
-                                                        : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+                                                    ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
+                                                    : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
                                                     }`}
                                             >
                                                 {chat.type === "group" ? (
