@@ -23,6 +23,20 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, canDelete = false }: MessageBubbleProps) {
     const { data: session } = useSession();
+
+    // Helper to detect if content is only emojis
+    const isEmojiOnly = (text?: string) => {
+        if (!text) return false;
+        const emojiRegex = /^(\p{Extended_Pictographic}|\s)+$/u;
+        return emojiRegex.test(text) && text.trim().length > 0;
+    };
+
+    const isImage = message.type === "image" && !message.isViewOnce && !!message.imageUrl;
+    const isGif = message.type === "gif" && !!message.imageUrl;
+    const isEmoji = !isImage && !isGif && isEmojiOnly(message.content);
+
+    // Determine if we should remove padding
+    const noPadding = isImage || isGif || isEmoji;
     // ... existing code ...
     {/* Regular image */ }
     {
@@ -94,9 +108,12 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                 )}
 
                 <div
-                    className={`relative rounded-2xl px-3.5 py-2 shadow-sm ${isMine
-                        ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-br-md"
-                        : "bg-muted/80 text-foreground rounded-bl-md"
+                    className={`relative shadow-sm ${noPadding ? "p-0 bg-transparent" : "px-3.5 py-2 rounded-2xl"
+                        } ${!noPadding && isMine
+                            ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-br-md"
+                            : !noPadding
+                                ? "bg-muted/80 text-foreground rounded-bl-md"
+                                : ""
                         }`}
                 >
                     {canDelete && onDelete && (
@@ -159,8 +176,9 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                     )}
 
                     {/* Regular image */}
-                    {message.type === "image" && !message.isViewOnce && message.imageUrl && (
-                        <div className="mb-1">
+                    {/* Regular image */}
+                    {isImage && (
+                        <div className="relative">
                             <button
                                 type="button"
                                 onClick={(e) => {
@@ -172,22 +190,36 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                                         console.warn("onImageClick prop is missing");
                                     }
                                 }}
-                                className="rounded-lg overflow-hidden"
+                                className="block rounded-2xl overflow-hidden"
                             >
                                 <img
                                     src={message.imageUrl}
                                     alt="Shared media"
-                                    className="rounded-lg max-w-full max-h-64 object-cover"
+                                    className="rounded-2xl max-w-full max-h-64 object-cover"
                                     loading="lazy"
                                 />
                             </button>
+                            {/* Overlay timestamp for images */}
+                            <div className="absolute bottom-2 right-2 bg-black/40 px-1.5 py-0.5 rounded text-[10px] text-white/90 flex items-center gap-1 backdrop-blur-sm">
+                                {format(new Date(message.createdAt), "HH:mm")}
+                                {isMine && (
+                                    <span>
+                                        {message.readBy && message.readBy.length > 1 ? (
+                                            <CheckCheck className="w-3 h-3 text-sky-200" />
+                                        ) : (
+                                            <Check className="w-3 h-3" />
+                                        )}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {/* GIF */}
-                    {message.type === "gif" && message.imageUrl && (
-                        <div className="mb-1">
-                            <div className="relative inline-block">
+                    {/* GIF */}
+                    {isGif && (
+                        <div className="relative">
+                            <div className="relative inline-block rounded-2xl overflow-hidden">
                                 <button
                                     type="button"
                                     onClick={(e) => {
@@ -196,58 +228,75 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                                             onImageClick(message.imageUrl!);
                                         }
                                     }}
-                                    className="rounded-lg overflow-hidden"
+                                    className="block"
                                 >
                                     <img
                                         src={message.imageUrl}
                                         alt="Shared GIF"
-                                        className="rounded-lg max-w-full max-h-64 object-cover"
+                                        className="max-w-full max-h-64 object-cover"
                                         loading="lazy"
                                     />
                                 </button>
                                 <span
-                                    className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full ${isMine
-                                        ? "bg-white/20 text-white"
-                                        : "bg-rose-500/20 text-rose-600"
-                                        }`}
+                                    className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-white backdrop-blur-sm"
                                 >
                                     GIF · {message.gifCategory === "hug" ? "Hug" : message.gifCategory === "romance" ? "Romance" : "Kissing"}
                                 </span>
+                                {/* Overlay timestamp for GIFs */}
+                                <div className="absolute bottom-2 right-2 bg-black/40 px-1.5 py-0.5 rounded text-[10px] text-white/90 flex items-center gap-1 backdrop-blur-sm">
+                                    {format(new Date(message.createdAt), "HH:mm")}
+                                    {isMine && (
+                                        <span>
+                                            {message.readBy && message.readBy.length > 1 ? (
+                                                <CheckCheck className="w-3 h-3 text-sky-200" />
+                                            ) : (
+                                                <Check className="w-3 h-3" />
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Text content */}
-                    {message.content && (
-                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                            {message.content}
-                        </p>
+                    {/* Text content */}
+                    {!isImage && !isGif && message.content && (
+                        <div className={isEmoji ? "text-4xl leading-none px-1" : ""}>
+                            <p className={`whitespace-pre-wrap break-words ${isEmoji ? "" : "text-sm leading-relaxed"
+                                }`}>
+                                {message.content}
+                            </p>
+                        </div>
                     )}
 
                     {/* Timestamp & status */}
-                    <div
-                        className={`flex items-center gap-1 mt-1 ${isMine ? "justify-end" : "justify-start"
-                            }`}
-                    >
-                        {message.selfDestructAt && (
-                            <Clock className={`w-3 h-3 ${isMine ? "text-white/50" : "text-muted-foreground"}`} />
-                        )}
-                        <span
-                            className={`text-[10px] ${isMine ? "text-white/60" : "text-muted-foreground"
-                                }`}
+                    {/* Timestamp & status (Only for non-media, or if Emoji) */}
+                    {!isImage && !isGif && (
+                        <div
+                            className={`flex items-center gap-1 mt-1 ${isMine ? "justify-end" : "justify-start"
+                                } ${isEmoji ? "opacity-70 px-1" : ""}`}
                         >
-                            {format(new Date(message.createdAt), "HH:mm")}
-                        </span>
-                        {isMine && (
-                            <span className="text-white/60">
-                                {message.readBy && message.readBy.length > 1 ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-sky-200" />
-                                ) : (
-                                    <Check className="w-3.5 h-3.5" />
-                                )}
+                            {message.selfDestructAt && (
+                                <Clock className={`w-3 h-3 ${isMine && !isEmoji ? "text-white/50" : "text-muted-foreground"}`} />
+                            )}
+                            <span
+                                className={`text-[10px] ${isMine && !isEmoji ? "text-white/60" : "text-muted-foreground"
+                                    }`}
+                            >
+                                {format(new Date(message.createdAt), "HH:mm")}
                             </span>
-                        )}
-                    </div>
+                            {isMine && (
+                                <span className={!isEmoji ? "text-white/60" : "text-muted-foreground"}>
+                                    {message.readBy && message.readBy.length > 1 ? (
+                                        <CheckCheck className="w-3.5 h-3.5 text-sky-200" />
+                                    ) : (
+                                        <Check className="w-3.5 h-3.5" />
+                                    )}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>
