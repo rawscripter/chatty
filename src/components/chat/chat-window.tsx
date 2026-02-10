@@ -235,7 +235,6 @@ export function ChatWindow() {
 
             addMessage(message);
 
-            // Mark as read
             if (senderId !== session?.user?.id) {
                 playNotificationSound();
                 fetch(`/api/chats/${activeChat._id}/read`, {
@@ -244,6 +243,9 @@ export function ChatWindow() {
                     body: JSON.stringify({ messageId: message._id }),
                 });
             }
+
+            // Scroll to bottom for new messages
+            shouldScrollToBottomRef.current = true;
         };
 
         const handleTyping = (data: {
@@ -297,12 +299,34 @@ export function ChatWindow() {
         };
     }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate]);
 
-    // Auto-scroll to bottom
-    useEffect(() => {
-        if (messages.length > 0) {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll Management
+    const shouldScrollToBottomRef = useRef(false);
+
+    // Helper to scroll to bottom
+    const scrollToBottom = useCallback((instant = false) => {
+        if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({
+                behavior: instant ? "auto" : "smooth",
+                block: "end",
+            });
         }
-    }, [messages.length]);
+    }, []);
+
+    // Effect to handle scroll triggers
+    useEffect(() => {
+        if (shouldScrollToBottomRef.current) {
+            scrollToBottom(messages.length === 50); // Instant if it's a full page (likely initial load)
+            shouldScrollToBottomRef.current = false;
+        }
+    }, [messages, scrollToBottom]);
+
+    // Initial load scroll
+    useEffect(() => {
+        if (!loading && messages.length > 0 && page === 1) {
+            // If we just loaded the first page, scroll to bottom instantly
+            scrollToBottom(true);
+        }
+    }, [loading, messages, page, scrollToBottom]);
 
     // Send message handler
     const handleSendMessage = async (data: {
@@ -349,6 +373,7 @@ export function ChatWindow() {
 
         addMessage(tempMessage);
         setReplyingTo(null);
+        shouldScrollToBottomRef.current = true;
 
         try {
             const res = await fetch(`/api/chats/${activeChat._id}/messages`, {
