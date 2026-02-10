@@ -89,19 +89,22 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
                     {/* View-once image */}
                     {message.type === "image" && message.isViewOnce && !message.viewOnceViewed && (
                         <button
-                            onClick={() => onViewOnce?.(message._id)}
+                            onClick={() => !isMine && onViewOnce?.(message._id)}
+                            disabled={isMine}
                             className={`flex items-center gap-2 py-2 px-1 rounded-lg transition-colors ${isMine
-                                ? "hover:bg-white/10 text-white/90"
-                                : "hover:bg-muted text-foreground"
+                                ? "cursor-default opacity-90"
+                                : "hover:bg-muted text-foreground cursor-pointer"
                                 }`}
                         >
-                            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                                <Eye className="w-5 h-5 text-amber-500" />
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isMine ? "bg-white/20" : "bg-amber-500/20"}`}>
+                                <Eye className={`w-5 h-5 ${isMine ? "text-white/90" : "text-amber-500"}`} />
                             </div>
                             <div className="text-left">
-                                <p className="text-sm font-medium">View once photo</p>
-                                <p className={`text-[10px] ${isMine ? "text-white/60" : "text-muted-foreground"}`}>
-                                    Tap to open · Photo will disappear
+                                <p className={`text-sm font-medium ${isMine ? "text-white/90" : "text-foreground"}`}>
+                                    {isMine ? "View Once Photo" : "View once photo"}
+                                </p>
+                                <p className={`text-[10px] ${isMine ? "text-white/70" : "text-muted-foreground"}`}>
+                                    {isMine ? "Sent · 1 view allowed" : "Tap to open · Photo will disappear"}
                                 </p>
                             </div>
                         </button>

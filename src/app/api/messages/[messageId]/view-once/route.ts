@@ -31,6 +31,11 @@ export async function POST(
             return NextResponse.json({ error: "This image has already been viewed" }, { status: 410 });
         }
 
+        // Prevent sender from viewing their own view-once message
+        if (message.sender.toString() === session.user.id) {
+            return NextResponse.json({ error: "Sender cannot view their own view-once message" }, { status: 403 });
+        }
+
         // Mark as viewed
         message.viewOnceViewed = true;
         message.viewedBy.push({

@@ -22,15 +22,14 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
-    const { isConnected } = usePusher();
+    const { isConnected, onlineUsers } = usePusher();
     const { setSidebarOpen, setActiveChat } = useChatStore();
 
     const otherParticipant = chat.type === "direct"
         ? (chat.participants as IUser[]).find((p) => p._id !== session?.user?.id)
         : null;
 
-    // Online status temporarily removed until Pusher Presence is implemented
-    const isOnline = false;
+    const isOnline = otherParticipant ? onlineUsers.has(otherParticipant._id) : false;
 
     const chatName = chat.type === "group"
         ? chat.name || "Group Chat"
@@ -38,7 +37,11 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
 
     const statusText = chat.type === "group"
         ? `${(chat.participants as IUser[]).length} members`
-        : isConnected ? "Connected" : "Reconnecting...";
+        : !isConnected
+            ? "Reconnecting..."
+            : isOnline
+                ? "Online"
+                : "Offline";
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
