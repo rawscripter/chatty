@@ -5,7 +5,7 @@ import Session from "@/models/session";
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { sessionId: string } }
+    { params }: { params: Promise<{ sessionId: string }> }
 ) {
     try {
         const session = await auth();
@@ -17,7 +17,7 @@ export async function DELETE(
             );
         }
 
-        const { sessionId } = params;
+        const { sessionId } = await params;
 
         if (!sessionId) {
             return NextResponse.json(
