@@ -68,6 +68,7 @@ export interface IMessage {
 export interface ServerToClientEvents {
   "message:new": (message: IMessage) => void;
   "message:read": (data: { messageId: string; userId: string; readAt: string }) => void;
+  "message:deleted": (data: { messageId: string; chatId: string; lastMessage?: IMessage | null; updatedAt?: string | Date }) => void;
   "typing:update": (data: { chatId: string; userId: string; userName: string; isTyping: boolean }) => void;
   "user:online": (data: { userId: string }) => void;
   "user:offline": (data: { userId: string; lastSeen: string }) => void;

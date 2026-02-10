@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun } from "lucide-react";
+import { useChatStore } from "@/store/chat-store";
 
 function getInitials(name: string): string {
     return name
@@ -30,6 +31,8 @@ export default function ProfilePage() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [loadingProfile, setLoadingProfile] = useState(true);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const notificationMuted = useChatStore((state) => state.notificationMuted);
+    const setNotificationMuted = useChatStore((state) => state.setNotificationMuted);
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -242,6 +245,31 @@ export default function ProfilePage() {
                             >
                                 <Monitor className="w-4 h-4" />
                                 System
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Separator className="opacity-60" />
+
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-sm font-medium">Notifications</p>
+                            <p className="text-xs text-muted-foreground">Control new message sounds.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            <Button
+                                variant={notificationMuted ? "default" : "ghost"}
+                                onClick={() => setNotificationMuted(true)}
+                                className="gap-2 justify-start"
+                            >
+                                Mute sounds
+                            </Button>
+                            <Button
+                                variant={!notificationMuted ? "default" : "ghost"}
+                                onClick={() => setNotificationMuted(false)}
+                                className="gap-2 justify-start"
+                            >
+                                Play sounds
                             </Button>
                         </div>
                     </div>

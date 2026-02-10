@@ -30,7 +30,14 @@ interface ChatStore {
     // UI state
     isSidebarOpen: boolean;
     setSidebarOpen: (open: boolean) => void;
+    notificationMuted: boolean;
+    setNotificationMuted: (muted: boolean) => void;
 }
+
+const notificationMuteKey = "chatty:mute-notifications";
+const initialNotificationMuted =
+    typeof window !== "undefined" &&
+    window.localStorage.getItem(notificationMuteKey) === "true";
 
 export const useChatStore = create<ChatStore>((set) => ({
     // Chats
@@ -115,4 +122,12 @@ export const useChatStore = create<ChatStore>((set) => ({
     // UI
     isSidebarOpen: true,
     setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+    notificationMuted: initialNotificationMuted,
+    setNotificationMuted: (muted) =>
+        set(() => {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(notificationMuteKey, muted ? "true" : "false");
+            }
+            return { notificationMuted: muted };
+        }),
 }));

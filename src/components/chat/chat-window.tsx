@@ -21,6 +21,7 @@ export function ChatWindow() {
     const { pusher } = usePusher();
     const {
         activeChat,
+        chats,
         messages,
         setMessages,
         addMessage,
@@ -29,6 +30,8 @@ export function ChatWindow() {
         replaceMessage,
         typingUsers,
         setTyping,
+        updateChat,
+        notificationMuted,
     } = useChatStore();
 
     const [loading, setLoading] = useState(false);
@@ -39,6 +42,64 @@ export function ChatWindow() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<IMessage[]>([]);
+    const audioContextRef = useRef<AudioContext | null>(null);
+
+    const isAdmin = !!activeChat?.admins?.some((adminId) => String(adminId) === session?.user?.id);
+
+    const applyChatUpdate = useCallback(
+        (chatId: string, lastMessage?: IMessage | null, updatedAt?: string | Date) => {
+            const chat = chats.find((item) => item._id === chatId);
+            if (!chat) return;
+
+            updateChat({
+                ...chat,
+                lastMessage:
+                    lastMessage === null
+                        ? undefined
+                        : lastMessage !== undefined
+                            ? lastMessage
+                            : chat.lastMessage,
+                updatedAt: updatedAt ? new Date(updatedAt) : chat.updatedAt,
+            });
+        },
+        [chats, updateChat]
+    );
+
+    const playNotificationSound = useCallback(() => {
+        if (notificationMuted || typeof window === "undefined") return;
+
+        try {
+            const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AudioContextClass) return;
+
+            if (!audioContextRef.current) {
+                audioContextRef.current = new AudioContextClass();
+            }
+
+            const context = audioContextRef.current;
+            if (context.state === "suspended") {
+                context.resume();
+            }
+
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+
+            oscillator.type = "sine";
+            oscillator.frequency.value = 880;
+
+            gain.gain.setValueAtTime(0.0001, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.16);
+
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.17);
+        } catch (error) {
+            console.error("Notification sound error:", error);
+        }
+    }, [notificationMuted]);
 
     // Fetch only messages (no lock check)
     const loadMessages = useCallback(async () => {
@@ -118,6 +179,7 @@ export function ChatWindow() {
 
             // Mark as read
             if (senderId !== session?.user?.id) {
+                playNotificationSound();
                 fetch(`/api/chats/${activeChat._id}/read`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -155,16 +217,27 @@ export function ChatWindow() {
             updateMessage(data.messageId, { viewOnceViewed: true, imageUrl: undefined });
         };
 
+        const handleMessageDeleted = (data: {
+            messageId: string;
+            chatId: string;
+            lastMessage?: IMessage | null;
+            updatedAt?: string | Date;
+        }) => {
+            removeMessage(data.messageId);
+            applyChatUpdate(data.chatId, data.lastMessage, data.updatedAt);
+        };
+
         channel.bind("message:new", handleNewMessage);
         channel.bind("typing:update", handleTyping);
         channel.bind("message:read", handleReadReceipt);
         channel.bind("message:viewed-once", handleViewedOnce);
+        channel.bind("message:deleted", handleMessageDeleted);
 
         return () => {
             channel.unbind_all();
             pusher.unsubscribe(channelName);
         };
-    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage]);
+    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -239,6 +312,23 @@ export function ChatWindow() {
         } catch (error) {
             console.error("Failed to send message:", error);
             removeMessage(tempId);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        const confirmed = window.confirm("Delete this message? This cannot be undone.");
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                removeMessage(messageId);
+                applyChatUpdate(data.data.chatId, data.data.lastMessage, data.data.updatedAt);
+            }
+        } catch (error) {
+            console.error("Delete message error:", error);
         }
     };
 
@@ -321,6 +411,11 @@ export function ChatWindow() {
                                     message={msg}
                                     onViewOnce={(id) => setViewOnceMessageId(id)}
                                     onImageClick={setViewImage}
+                                    onDelete={handleDeleteMessage}
+                                    canDelete={
+                                        msg.type !== "system" &&
+                                        (getSenderId(msg.sender) === session?.user?.id || isAdmin)
+                                    }
                                 />
                             ))
                         )}
@@ -366,3 +461,5 @@ export function ChatWindow() {
         </div>
     );
 }
+    const getSenderId = (sender: IMessage["sender"]) =>
+        typeof sender === "string" ? sender : sender._id;

@@ -4,16 +4,24 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Check, CheckCheck, Image as ImageIcon, Eye, Clock } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Check, CheckCheck, Image as ImageIcon, Eye, Clock, MoreVertical, Trash2 } from "lucide-react";
 import type { IMessage, IUser } from "@/types";
 
 interface MessageBubbleProps {
     message: IMessage;
     onViewOnce?: (messageId: string) => void;
     onImageClick?: (imageUrl: string) => void;
+    onDelete?: (messageId: string) => void;
+    canDelete?: boolean;
 }
 
-export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubbleProps) {
+export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, canDelete = false }: MessageBubbleProps) {
     const { data: session } = useSession();
     // ... existing code ...
     {/* Regular image */ }
@@ -58,7 +66,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className={`flex gap-2 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+            className={`group flex gap-2 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
         >
             {/* Avatar */}
             {!isMine && (
@@ -86,11 +94,33 @@ export function MessageBubble({ message, onViewOnce, onImageClick }: MessageBubb
                 )}
 
                 <div
-                    className={`rounded-2xl px-3.5 py-2 shadow-sm ${isMine
+                    className={`relative rounded-2xl px-3.5 py-2 shadow-sm ${isMine
                         ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-br-md"
                         : "bg-muted/80 text-foreground rounded-bl-md"
                         }`}
                 >
+                    {canDelete && onDelete && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    type="button"
+                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    aria-label="Message actions"
+                                >
+                                    <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => onDelete(message._id)}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                     {/* View-once image */}
                     {message.type === "image" && message.isViewOnce && !message.viewOnceViewed && (
                         <button
