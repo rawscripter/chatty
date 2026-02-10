@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, CheckCheck, Image as ImageIcon, Eye, Clock, MoreVertical, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Image as ImageIcon, Eye, Clock, MoreVertical, Trash2, Reply } from "lucide-react";
 import type { IMessage, IUser } from "@/types";
 import { BubbleTheme } from "@/store/chat-store";
 
@@ -42,11 +42,12 @@ interface MessageBubbleProps {
     onViewOnce?: (messageId: string) => void;
     onImageClick?: (imageUrl: string) => void;
     onDelete?: (messageId: string) => void;
+    onReply?: (message: IMessage) => void;
     canDelete?: boolean;
     variant?: BubbleTheme;
 }
 
-export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, canDelete = false, variant = "emerald" }: MessageBubbleProps) {
+export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onReply, canDelete = false, variant = "emerald" }: MessageBubbleProps) {
     const { data: session } = useSession();
 
     // Helper to detect if content is only emojis
@@ -141,28 +142,76 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                                 : ""
                         }`}
                 >
-                    {canDelete && onDelete && (
+                    {/* Reply Quote */}
+                    {message.replyTo && (message.replyTo as IMessage).sender && (
+                        <div className={`mb-2 mx-1 p-2.5 rounded-xl text-xs ${isMine
+                            ? "bg-black/20 text-white/90"
+                            : "bg-black/5 text-foreground/90"} 
+                            border-l-4 ${isMine ? "border-white/40" : "border-emerald-500/50"}
+                            backdrop-blur-sm transition-all hover:bg-black/25 cursor-pointer`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Optional: Scroll to message logic could go here
+                            }}
+                        >
+                            <div className="flex items-center gap-1.5 mb-1 opacity-90">
+                                <Reply className="w-3 h-3" />
+                                <p className="font-bold">
+                                    {typeof (message.replyTo as IMessage).sender === 'string'
+                                        ? 'User'
+                                        : ((message.replyTo as IMessage).sender as IUser).name}
+                                </p>
+                            </div>
+                            <p className="opacity-80 line-clamp-2 px-1">
+                                {(message.replyTo as IMessage).type === 'image' ? (
+                                    <span className="flex items-center gap-1">
+                                        <ImageIcon className="w-3 h-3" /> Photo
+                                    </span>
+                                ) : (message.replyTo as IMessage).type === 'gif' ? (
+                                    <span className="flex items-center gap-1">
+                                        <ImageIcon className="w-3 h-3" /> GIF
+                                    </span>
+                                ) : (
+                                    (message.replyTo as IMessage).content
+                                )}
+                            </p>
+                        </div>
+                    )}
+
+                    {(canDelete && onDelete) || onReply ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button
                                     type="button"
-                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                     aria-label="Message actions"
                                 >
                                     <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    variant="destructive"
-                                    onClick={() => onDelete(message._id)}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete
-                                </DropdownMenuItem>
+                                {onReply && (
+                                    <DropdownMenuItem
+                                        onClick={() => onReply(message)}
+                                        className="gap-2 cursor-pointer"
+                                    >
+                                        <Reply className="w-4 h-4" />
+                                        Reply
+                                    </DropdownMenuItem>
+                                )}
+                                {canDelete && onDelete && (
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        onClick={() => onDelete(message._id)}
+                                        className="gap-2 cursor-pointer"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
-                    )}
+                    ) : null}
                     {/* View-once image */}
                     {message.type === "image" && message.isViewOnce && !message.viewOnceViewed && (
                         <button
@@ -324,6 +373,6 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                     )}
                 </div>
             </div>
-        </motion.div>
+        </motion.div >
     );
 }

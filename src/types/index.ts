@@ -59,6 +59,7 @@ export interface IMessage {
   viewOnceViewed: boolean;
   viewedBy: IViewRecord[];
   readBy: IReadReceipt[];
+  replyTo?: IMessage | null;
   selfDestructAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -77,7 +78,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  "message:send": (data: { chatId: string; content: string; type: MessageType; imageUrl?: string; cloudinaryPublicId?: string; gifCategory?: GifCategory; isViewOnce?: boolean; selfDestructMinutes?: number }) => void;
+  "message:send": (data: { chatId: string; content: string; type: MessageType; imageUrl?: string; cloudinaryPublicId?: string; gifCategory?: GifCategory; isViewOnce?: boolean; selfDestructMinutes?: number; replyTo?: string }) => void;
   "message:read": (data: { messageId: string; chatId: string }) => void;
   "typing:start": (data: { chatId: string }) => void;
   "typing:stop": (data: { chatId: string }) => void;

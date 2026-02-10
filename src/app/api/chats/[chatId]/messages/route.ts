@@ -37,6 +37,12 @@ export async function GET(
 
         const messages = await Message.find({ chat: chatId })
             .populate("sender", "name email avatar")
+            .populate({
+                path: "replyTo",
+                select: "content type sender",
+                populate: { path: "sender", select: "name" },
+                strictPopulate: false
+            })
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -89,7 +95,7 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { content, type = "text", imageUrl, cloudinaryPublicId, gifCategory, isViewOnce, selfDestructMinutes } = body;
+        const { content, type = "text", imageUrl, cloudinaryPublicId, gifCategory, isViewOnce, selfDestructMinutes, replyTo } = body;
 
         if (type === "text" && (!content || !content.trim())) {
             return NextResponse.json({ error: "Message content is required" }, { status: 400 });
@@ -105,6 +111,7 @@ export async function POST(
             content: content || "",
             type,
             readBy: [{ user: session.user.id, readAt: new Date() }],
+            replyTo: replyTo || undefined,
         };
 
         if (type === "image") {
@@ -135,6 +142,12 @@ export async function POST(
 
         const populatedMessage = await Message.findById(message._id)
             .populate("sender", "name email avatar")
+            .populate({
+                path: "replyTo",
+                select: "content type sender",
+                populate: { path: "sender", select: "name" },
+                strictPopulate: false
+            })
             .lean();
 
         // Trigger Pusher event

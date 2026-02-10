@@ -44,6 +44,7 @@ export function ChatWindow() {
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<IMessage[]>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
 
     const isAdmin = !!activeChat?.admins?.some((adminId) => String(adminId) === session?.user?.id);
 
@@ -256,6 +257,7 @@ export function ChatWindow() {
         gifCategory?: "kissing" | "hug" | "romance";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
+        replyTo?: string;
     }) => {
         if (!activeChat || !session?.user) return;
 
@@ -286,9 +288,11 @@ export function ChatWindow() {
             readBy: [],
             createdAt: new Date(),
             updatedAt: new Date(),
+            replyTo: replyingTo || undefined,
         };
 
         addMessage(tempMessage);
+        setReplyingTo(null);
 
         try {
             const res = await fetch(`/api/chats/${activeChat._id}/messages`, {
@@ -418,6 +422,7 @@ export function ChatWindow() {
                                         (getSenderId(msg.sender) === session?.user?.id || isAdmin)
                                     }
                                     variant={bubbleTheme}
+                                    onReply={setReplyingTo}
                                 />
                             ))
                         )}
@@ -430,7 +435,16 @@ export function ChatWindow() {
                 </div>
             )}
 
-            {isUnlocked && <MessageInput chatId={activeChat._id} onSendMessage={handleSendMessage} />}
+
+
+            {isUnlocked && (
+                <MessageInput
+                    chatId={activeChat._id}
+                    onSendMessage={handleSendMessage}
+                    replyTo={replyingTo}
+                    onCancelReply={() => setReplyingTo(null)}
+                />
+            )}
 
             {/* Password dialog */}
             <PasswordDialog

@@ -12,6 +12,7 @@ export interface IMessageDocument extends mongoose.Document {
     viewOnceViewed: boolean;
     viewedBy: { user: mongoose.Types.ObjectId; viewedAt: Date }[];
     readBy: { user: mongoose.Types.ObjectId; readAt: Date }[];
+    replyTo?: mongoose.Types.ObjectId;
     selfDestructAt?: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -66,6 +67,11 @@ const MessageSchema = new Schema<IMessageDocument>(
                 readAt: { type: Date, default: Date.now },
             },
         ],
+        replyTo: {
+            type: Schema.Types.ObjectId,
+            ref: "Message",
+            default: null,
+        },
         selfDestructAt: {
             type: Date,
             index: { expires: 0 },
@@ -77,6 +83,15 @@ const MessageSchema = new Schema<IMessageDocument>(
 );
 
 MessageSchema.index({ chat: 1, createdAt: -1 });
+
+MessageSchema.index({ chat: 1, createdAt: -1 });
+
+// Force model rebuild in development to pick up schema changes
+if (process.env.NODE_ENV === "development") {
+    if (models.Message) {
+        delete models.Message;
+    }
+}
 
 const Message = models.Message || model<IMessageDocument>("Message", MessageSchema);
 

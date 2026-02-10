@@ -10,8 +10,12 @@ import Picker from "@emoji-mart/react";
 import { CameraCapture } from "./camera-capture";
 import { GifPicker } from "./gif-picker";
 
+import type { IMessage } from "@/types";
+
 interface MessageInputProps {
     chatId: string;
+    replyTo?: IMessage | null;
+    onCancelReply?: () => void;
     onSendMessage: (data: {
         content: string;
         type: "text" | "image" | "gif";
@@ -20,10 +24,11 @@ interface MessageInputProps {
         gifCategory?: "kissing" | "hug" | "romance";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
+        replyTo?: string;
     }) => void;
 }
 
-export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
+export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: MessageInputProps) {
     const [message, setMessage] = useState("");
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -89,11 +94,13 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
             content: message.trim(),
             type: "text",
             selfDestructMinutes: selfDestruct || undefined,
+            replyTo: replyTo?._id,
         });
 
         setMessage("");
         setSelfDestruct(0);
         setShowEmojiPicker(false);
+        if (onCancelReply) onCancelReply();
 
         // Stop typing
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
@@ -129,10 +136,12 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
                     cloudinaryPublicId: data.data.publicId,
                     gifCategory: isGif ? gifCategory : undefined,
                     isViewOnce: isGif ? false : isViewOnce,
+                    replyTo: replyTo?._id,
                 });
 
                 clearImage();
                 setMessage("");
+                if (onCancelReply) onCancelReply();
             }
         } catch (error) {
             console.error("Upload error:", error);
@@ -175,10 +184,12 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
             imageUrl: gifUrl,
             gifCategory: category,
             isViewOnce: false,
+            replyTo: replyTo?._id,
         });
         setMessage("");
         setShowEmojiPicker(false);
         setShowGifPicker(false);
+        if (onCancelReply) onCancelReply();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -190,6 +201,35 @@ export function MessageInput({ chatId, onSendMessage }: MessageInputProps) {
 
     return (
         <div className="border-t border-border/50 bg-card/50 backdrop-blur-sm p-3">
+            {/* Reply Preview */}
+            <AnimatePresence>
+                {replyTo && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                        className="mb-3 relative bg-muted/50 rounded-xl overflow-hidden border-l-4 border-emerald-500"
+                    >
+                        <div className="p-3 pr-10">
+                            <p className="text-xs font-semibold text-emerald-500 mb-0.5">
+                                Replying to {typeof replyTo.sender === 'string' ? 'User' : replyTo.sender.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                                {replyTo.type === 'image' ? '📷 Photo' :
+                                    replyTo.type === 'gif' ? '👾 GIF' :
+                                        replyTo.content}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onCancelReply}
+                            className="absolute top-2 right-2 p-1 rounded-full hover:bg-background/80 transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Image preview */}
             <AnimatePresence>
                 {imagePreview && (
