@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {},
+  turbopack: {
+    resolveAlias: {
+      cheerio: "cheerio/dist/commonjs/index.js",
+    },
+  },
   webpack: (config) => {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {
