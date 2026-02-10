@@ -4,7 +4,7 @@ import { pusherServer } from "@/lib/pusher";
 
 export async function POST(
     req: Request,
-    { params }: { params: { chatId: string } }
+    { params }: { params: Promise<{ chatId: string }> }
 ) {
     try {
         const session = await auth();
@@ -13,7 +13,7 @@ export async function POST(
         }
 
         const { isTyping } = await req.json();
-        const chatId = params.chatId;
+        const { chatId } = await params;
 
         await pusherServer.trigger(`chat-${chatId}`, "typing:update", {
             userId: session.user.id,

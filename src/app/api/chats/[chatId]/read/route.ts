@@ -6,7 +6,7 @@ import dbConnect from "@/lib/db";
 
 export async function POST(
     req: Request,
-    { params }: { params: { chatId: string } }
+    { params }: { params: Promise<{ chatId: string }> }
 ) {
     try {
         const session = await auth();
@@ -15,7 +15,7 @@ export async function POST(
         }
 
         const { messageId } = await req.json();
-        const chatId = params.chatId;
+        const { chatId } = await params;
 
         await dbConnect();
 
