@@ -208,7 +208,7 @@ export function ChatLayout() {
             {/* Sidebar - Hidden on mobile when chat is active */}
             <div className={`
                 flex-shrink-0 h-full lg:border-r border-border/50 bg-background lg:bg-card/50 lg:backdrop-blur-sm
-                ${activeChat ? 'hidden lg:flex w-full lg:w-[340px]' : 'w-full lg:w-[340px]'}
+                ${activeChat ? 'hidden lg:flex w-full lg:w-[340px]' : 'lg:flex w-full lg:w-[340px]'}
             `}>
                 <ChatSidebar />
             </div>
