@@ -130,7 +130,8 @@ export function ChatLayout() {
                 setActiveChat(chat);
             }
         }
-    }, [session, chats, activeChat, setActiveChat]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, chats, setActiveChat]);
 
     // Track previous active chat to prevent URL synchronization loops
     const prevActiveChatIdRef = useRef<string | null>(activeChat?._id || null);
