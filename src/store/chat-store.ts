@@ -20,6 +20,7 @@ interface ChatStore {
     setMessages: (messages: IMessage[]) => void;
     addMessage: (message: IMessage) => void;
     updateMessage: (messageId: string, updates: Partial<IMessage>) => void;
+    removeMessage: (messageId: string) => void;
 
     // Typing
     typingUsers: Map<string, TypingUser[]>;
@@ -67,6 +68,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             messages: state.messages.map((m) =>
                 m._id === messageId ? { ...m, ...updates } : m
             ),
+        })),
+    removeMessage: (messageId) =>
+        set((state) => ({
+            messages: state.messages.filter((m) => m._id !== messageId),
         })),
 
     // Typing

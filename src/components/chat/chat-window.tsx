@@ -25,6 +25,7 @@ export function ChatWindow() {
         setMessages,
         addMessage,
         updateMessage,
+        removeMessage,
         typingUsers,
         setTyping,
     } = useChatStore();
@@ -94,7 +95,8 @@ export function ChatWindow() {
             addMessage(message);
 
             // Mark as read
-            if ((message.sender as any)._id !== session?.user?.id) {
+            const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+            if (senderId !== session?.user?.id) {
                 fetch(`/api/chats/${activeChat._id}/read`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -156,7 +158,37 @@ export function ChatWindow() {
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
     }) => {
-        if (!activeChat) return;
+        if (!activeChat || !session?.user) return;
+
+        // Optimistic Update
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage: IMessage = {
+            _id: tempId,
+            chat: activeChat._id,
+            sender: {
+                _id: session.user.id!,
+                name: session.user.name || "You",
+                email: session.user.email || "",
+                password: "",
+                avatar: session.user.image || "",
+                // Mock these for optimistic update
+                isOnline: true,
+                lastSeen: new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            },
+            content: data.content,
+            type: data.type,
+            imageUrl: data.imageUrl,
+            isViewOnce: data.isViewOnce || false,
+            viewOnceViewed: false,
+            viewedBy: [],
+            readBy: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        addMessage(tempMessage);
 
         try {
             const res = await fetch(`/api/chats/${activeChat._id}/messages`, {
@@ -171,10 +203,21 @@ export function ChatWindow() {
             const result = await res.json();
 
             if (result.success) {
+                // Remove temp message and let the real one take its place
+                // (Or strictly replace it to maintain position if sorting by ID/Time)
+                // Since we addMessage, if the real one comes via Pusher before this returns, 
+                // we might have duplicates if we don't clear the temp one.
+                removeMessage(tempId);
                 addMessage(result.data);
+            } else {
+                // Failed, remove temp message and show error
+                removeMessage(tempId);
+                console.error("Failed to send message:", result.error);
+                // Optionally show a toast here
             }
         } catch (error) {
             console.error("Failed to send message:", error);
+            removeMessage(tempId);
         }
     };
 

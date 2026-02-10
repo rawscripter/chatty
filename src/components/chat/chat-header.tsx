@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import { usePusher } from "@/components/providers/pusher-provider";
@@ -24,10 +25,37 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
     const { setSidebarOpen, setActiveChat } = useChatStore();
+    const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
 
     const otherParticipant = chat.type === "direct"
         ? (chat.participants as IUser[]).find((p) => p._id !== session?.user?.id)
         : null;
+
+    useEffect(() => {
+        if (otherParticipant?._id) {
+            // Initial fetch to get latest lastSeen
+            // We can use a new endpoint or just fetch the chat again if it populates fresh data
+            // Or simpler: create a specific endpoint for user details if needed. 
+            // For now, let's assume we can fetch user status via a new lightweight endpoint or existing pattern.
+            // Since we don't have a specific user fetch endpoint, we'll implement a lightweight fetch here 
+            // or rely on what we have. 
+            // Actually, best to fetch fresh user data to get accurate Last Seen.
+            // Let's create a quick function or assume an endpoint exists. 
+            // I'll add a simple fetch to a new endpoint /api/users/[userId] in next step if needed, 
+            // but for now let's try to simulate or use what we have. 
+            // Wait, we don't have a direct user fetch. 
+            // Let's implement getting it from the chat details which might be stale.
+            // Better: Add a quick fetch for status.
+            fetch(`/api/users/${otherParticipant._id}/status`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        setOtherUserDetails(data.data);
+                    }
+                })
+                .catch(err => console.error("Failed to fetch user status", err));
+        }
+    }, [otherParticipant?._id]);
 
     const isOnline = otherParticipant ? onlineUsers.has(otherParticipant._id) : false;
 
@@ -35,13 +63,34 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
         ? chat.name || "Group Chat"
         : otherParticipant?.name || "Unknown";
 
-    const statusText = chat.type === "group"
-        ? `${(chat.participants as IUser[]).length} members`
-        : !isConnected
-            ? "Reconnecting..."
-            : isOnline
-                ? "Online"
-                : "Offline";
+    // Use fresh details if available, otherwise chat participant data
+    const displayUser = otherUserDetails || otherParticipant;
+
+    let statusText = "";
+    if (chat.type === "group") {
+        statusText = `${(chat.participants as IUser[]).length} members`;
+    } else if (!isConnected) {
+        statusText = "Reconnecting...";
+    } else if (isOnline) {
+        statusText = "Online";
+    } else if (displayUser?.lastSeen) {
+        const lastSeenDate = new Date(displayUser.lastSeen);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - lastSeenDate.getTime()) / 60000);
+
+        if (diffInMinutes < 1) {
+            statusText = "Last seen just now";
+        } else if (diffInMinutes < 60) {
+            statusText = `Last seen ${diffInMinutes}m ago`;
+        } else if (diffInMinutes < 1440) {
+            const hours = Math.floor(diffInMinutes / 60);
+            statusText = `Last seen ${hours}h ago`;
+        } else {
+            statusText = `Last seen ${lastSeenDate.toLocaleDateString()}`;
+        }
+    } else {
+        statusText = "Offline";
+    }
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">

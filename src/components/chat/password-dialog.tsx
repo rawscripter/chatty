@@ -103,7 +103,7 @@ export function PasswordDialog({ open, onOpenChange, chatId, onUnlocked }: Passw
                         ) : (
                             <>
                                 <ShieldCheck className="w-4 h-4 mr-2" />
-                                Unlock Chat
+                                {loading ? "Unlocking..." : "Unlock Chat"}
                             </>
                         )}
                     </Button>

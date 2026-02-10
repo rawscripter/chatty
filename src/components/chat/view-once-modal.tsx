@@ -32,13 +32,13 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                 setImageUrl(url);
                 setStep("viewing");
 
-                // Auto-close after 10 seconds
+                // Auto-close after 30 seconds
                 setTimeout(() => {
                     setStep("done");
                     setImageUrl(null);
                     onOpenChange(false);
                     setStep("confirm");
-                }, 10000);
+                }, 30000);
             }
         } catch (error) {
             console.error("View-once error:", error);
@@ -85,7 +85,7 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                                 <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                                 <p className="text-xs text-amber-600 dark:text-amber-400 text-left">
-                                    The image will auto-close after 10 seconds and cannot be recovered.
+                                    The image will auto-close after 30 seconds and cannot be recovered.
                                 </p>
                             </div>
 
