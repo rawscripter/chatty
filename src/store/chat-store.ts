@@ -24,6 +24,7 @@ interface ChatStore {
     updateMessage: (messageId: string, updates: Partial<IMessage>) => void;
     removeMessage: (messageId: string) => void;
     replaceMessage: (messageId: string, message: IMessage) => void;
+    prependMessages: (messages: IMessage[]) => void;
 
     // Typing
     typingUsers: Map<string, TypingUser[]>;
@@ -115,6 +116,14 @@ export const useChatStore = create<ChatStore>((set) => ({
             }
 
             return { messages: [...state.messages, message] };
+        }),
+    prependMessages: (newMessages) =>
+        set((state) => {
+            const existingIds = new Set(state.messages.map((m) => m._id));
+            const uniqueNewMessages = newMessages.filter(
+                (m) => !existingIds.has(m._id)
+            );
+            return { messages: [...uniqueNewMessages, ...state.messages] };
         }),
 
     // Typing

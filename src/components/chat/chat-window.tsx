@@ -32,10 +32,14 @@ export function ChatWindow() {
         setTyping,
         updateChat,
         notificationMuted,
+        prependMessages,
         bubbleTheme,
     } = useChatStore();
 
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [showPasswordDialog, setShowPasswordDialog] = useState(false);
     const [isUnlocked, setIsUnlocked] = useState(true);
     const [viewOnceMessageId, setViewOnceMessageId] = useState<string | null>(null);
@@ -107,13 +111,16 @@ export function ChatWindow() {
     const loadMessages = useCallback(async () => {
         if (!activeChat) return;
         setLoading(true);
+        setPage(1);
+        setHasMore(true);
 
         try {
-            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50`);
+            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50&page=1`);
             const data = await res.json();
 
             if (data.success) {
                 setMessages(data.data);
+                setHasMore(data.pagination.hasMore);
             }
         } catch (error) {
             console.error("Failed to fetch messages:", error);
@@ -121,6 +128,55 @@ export function ChatWindow() {
             setLoading(false);
         }
     }, [activeChat, setMessages]);
+
+    const loadMoreMessages = useCallback(async () => {
+        if (!activeChat || !hasMore || loadingMore) return;
+
+        setLoadingMore(true);
+        const nextPage = page + 1;
+
+        // Capture scroll info before update
+        const scrollContainer = scrollRef.current;
+        const oldScrollHeight = scrollContainer?.scrollHeight || 0;
+        const oldScrollTop = scrollContainer?.scrollTop || 0;
+
+        try {
+            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50&page=${nextPage}`);
+            const data = await res.json();
+
+            if (data.success) {
+                if (data.data.length > 0) {
+                    prependMessages(data.data);
+                    setPage(nextPage);
+                    setHasMore(data.pagination.hasMore);
+
+                    // Restore scroll position
+                    requestAnimationFrame(() => {
+                        if (scrollContainer) {
+                            const newScrollHeight = scrollContainer.scrollHeight;
+                            scrollContainer.scrollTop = newScrollHeight - oldScrollHeight + oldScrollTop;
+                        }
+                    });
+                } else {
+                    setHasMore(false);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load older messages:", error);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [activeChat, hasMore, loadingMore, page, prependMessages]);
+
+    const handleScroll = useCallback(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        // Load more when near top (e.g. 50px threshold)
+        if (container.scrollTop < 50 && hasMore && !loadingMore && !loading) {
+            loadMoreMessages();
+        }
+    }, [hasMore, loadingMore, loading, loadMoreMessages]);
 
     // Fetch messages with lock check (only on initial chat load)
     const fetchMessages = useCallback(async () => {
@@ -401,7 +457,11 @@ export function ChatWindow() {
                     <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
                 </div>
             ) : (
-                <div className="flex-1 overflow-y-auto min-h-0 px-4" ref={scrollRef}>
+                <div
+                    className="flex-1 overflow-y-auto min-h-0 px-4"
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                >
                     <div className="py-4 space-y-1 max-w-3xl mx-auto">
                         {messages.length === 0 ? (
                             <div className="text-center py-8">
@@ -410,21 +470,32 @@ export function ChatWindow() {
                                 </p>
                             </div>
                         ) : (
-                            messages.map((msg) => (
-                                <MessageBubble
-                                    key={msg._id}
-                                    message={msg}
-                                    onViewOnce={(id) => setViewOnceMessageId(id)}
-                                    onImageClick={setViewImage}
-                                    onDelete={handleDeleteMessage}
-                                    canDelete={
-                                        msg.type !== "system" &&
-                                        (getSenderId(msg.sender) === session?.user?.id || isAdmin)
-                                    }
-                                    variant={bubbleTheme}
-                                    onReply={setReplyingTo}
-                                />
-                            ))
+                            <>
+                                {hasMore && (
+                                    <div className="py-4 flex justify-center">
+                                        {loadingMore ? (
+                                            <Loader2 className="w-6 h-6 animate-spin text-emerald-500/50" />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground/50">Scroll for more</span>
+                                        )}
+                                    </div>
+                                )}
+                                {messages.map((msg) => (
+                                    <MessageBubble
+                                        key={msg._id}
+                                        message={msg}
+                                        onViewOnce={(id) => setViewOnceMessageId(id)}
+                                        onImageClick={setViewImage}
+                                        onDelete={handleDeleteMessage}
+                                        canDelete={
+                                            msg.type !== "system" &&
+                                            (getSenderId(msg.sender) === session?.user?.id || isAdmin)
+                                        }
+                                        variant={bubbleTheme}
+                                        onReply={setReplyingTo}
+                                    />
+                                ))}
+                            </>
                         )}
                         <div ref={bottomRef} />
                     </div>
