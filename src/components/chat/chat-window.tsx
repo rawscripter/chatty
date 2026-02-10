@@ -32,6 +32,7 @@ export function ChatWindow() {
         setTyping,
         updateChat,
         notificationMuted,
+        bubbleTheme,
     } = useChatStore();
 
     const [loading, setLoading] = useState(false);
@@ -416,6 +417,7 @@ export function ChatWindow() {
                                         msg.type !== "system" &&
                                         (getSenderId(msg.sender) === session?.user?.id || isAdmin)
                                     }
+                                    variant={bubbleTheme}
                                 />
                             ))
                         )}
@@ -461,5 +463,5 @@ export function ChatWindow() {
         </div>
     );
 }
-    const getSenderId = (sender: IMessage["sender"]) =>
-        typeof sender === "string" ? sender : sender._id;
+const getSenderId = (sender: IMessage["sender"]) =>
+    typeof sender === "string" ? sender : sender._id;

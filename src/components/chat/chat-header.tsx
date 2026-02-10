@@ -14,8 +14,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser } from "lucide-react";
+import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser, Palette } from "lucide-react";
 import type { IChat, IUser } from "@/types";
+import { BubbleTheme } from "@/store/chat-store";
 
 interface ChatHeaderProps {
     chat: IChat;
@@ -24,7 +25,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
-    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats } = useChatStore();
+    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats, bubbleTheme, setBubbleTheme } = useChatStore();
     const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
 
     const otherParticipant = chat.type === "direct"
@@ -125,6 +126,13 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
         }
     };
 
+    const themes: { id: BubbleTheme; name: string; color: string }[] = [
+        { id: "emerald", name: "Emerald", color: "bg-emerald-500" },
+        { id: "blue", name: "Blue", color: "bg-blue-500" },
+        { id: "rose", name: "Rose", color: "bg-rose-500" },
+        { id: "amber", name: "Amber", color: "bg-amber-500" },
+    ];
+
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -196,6 +204,27 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                             <Users className="w-4 h-4" />
                             Chat info
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="flex-col items-start gap-2 focus:bg-transparent">
+                            <div className="flex items-center gap-2 text-sm">
+                                <Palette className="w-4 h-4" />
+                                <span>Theme</span>
+                            </div>
+                            <div className="flex gap-1.5 w-full justify-between px-1">
+                                {themes.map((theme) => (
+                                    <button
+                                        key={theme.id}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setBubbleTheme(theme.id);
+                                        }}
+                                        className={`w-6 h-6 rounded-full ${theme.color} ${bubbleTheme === theme.id ? "ring-2 ring-primary ring-offset-2 ring-offset-popover" : "opacity-70 hover:opacity-100"} transition-all`}
+                                        title={theme.name}
+                                    />
+                                ))}
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                             className="gap-2 cursor-pointer"
                             onClick={handleClearConversation}

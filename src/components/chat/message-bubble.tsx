@@ -12,6 +12,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Check, CheckCheck, Image as ImageIcon, Eye, Clock, MoreVertical, Trash2 } from "lucide-react";
 import type { IMessage, IUser } from "@/types";
+import { BubbleTheme } from "@/store/chat-store";
+
+const variantStyles = {
+    emerald: {
+        bubble: "bg-gradient-to-br from-emerald-500 to-teal-600",
+        fallback: "bg-gradient-to-br from-emerald-500 to-teal-600",
+    },
+    blue: {
+        bubble: "bg-gradient-to-br from-blue-500 to-indigo-600",
+        fallback: "bg-gradient-to-br from-blue-500 to-indigo-600",
+    },
+    rose: {
+        bubble: "bg-gradient-to-br from-rose-500 to-pink-600",
+        fallback: "bg-gradient-to-br from-rose-500 to-pink-600",
+    },
+    amber: {
+        bubble: "bg-gradient-to-br from-amber-500 to-orange-600",
+        fallback: "bg-gradient-to-br from-amber-500 to-orange-600",
+    },
+    violet: { // Keep violet for group default, or just fallback
+        bubble: "bg-gradient-to-br from-violet-500 to-purple-600",
+        fallback: "bg-gradient-to-br from-violet-500 to-purple-600",
+    }
+};
 
 interface MessageBubbleProps {
     message: IMessage;
@@ -19,9 +43,10 @@ interface MessageBubbleProps {
     onImageClick?: (imageUrl: string) => void;
     onDelete?: (messageId: string) => void;
     canDelete?: boolean;
+    variant?: BubbleTheme;
 }
 
-export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, canDelete = false }: MessageBubbleProps) {
+export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, canDelete = false, variant = "emerald" }: MessageBubbleProps) {
     const { data: session } = useSession();
 
     // Helper to detect if content is only emojis
@@ -85,7 +110,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
             {/* Avatar */}
             {!isMine && (
                 <Avatar className="w-8 h-8 mt-1 flex-shrink-0">
-                    <AvatarFallback className="text-[10px] font-bold bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                    <AvatarFallback className={`text-[10px] font-bold text-white ${variantStyles[variant].fallback}`}>
                         {sender.name
                             ?.split(" ")
                             .map((n) => n[0])
@@ -110,7 +135,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, can
                 <div
                     className={`relative shadow-sm ${noPadding ? "p-0 bg-transparent" : "px-3.5 py-2 rounded-2xl"
                         } ${!noPadding && isMine
-                            ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-br-md"
+                            ? `${variantStyles[variant].bubble} text-white rounded-br-md`
                             : !noPadding
                                 ? "bg-muted/80 text-foreground rounded-bl-md"
                                 : ""

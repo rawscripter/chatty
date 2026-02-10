@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { IChat, IMessage } from "@/types";
 
+export type BubbleTheme = "emerald" | "blue" | "rose" | "amber";
+
 interface TypingUser {
     userId: string;
     userName: string;
@@ -32,12 +34,22 @@ interface ChatStore {
     setSidebarOpen: (open: boolean) => void;
     notificationMuted: boolean;
     setNotificationMuted: (muted: boolean) => void;
+
+    // Theme
+    bubbleTheme: BubbleTheme;
+    setBubbleTheme: (theme: BubbleTheme) => void;
 }
 
 const notificationMuteKey = "chatty:mute-notifications";
 const initialNotificationMuted =
     typeof window !== "undefined" &&
     window.localStorage.getItem(notificationMuteKey) === "true";
+
+const themeKey = "chatty:bubble-theme";
+const initialTheme =
+    (typeof window !== "undefined" &&
+        (window.localStorage.getItem(themeKey) as BubbleTheme)) ||
+    "emerald";
 
 export const useChatStore = create<ChatStore>((set) => ({
     // Chats
@@ -129,5 +141,15 @@ export const useChatStore = create<ChatStore>((set) => ({
                 window.localStorage.setItem(notificationMuteKey, muted ? "true" : "false");
             }
             return { notificationMuted: muted };
+        }),
+
+    // Theme
+    bubbleTheme: initialTheme,
+    setBubbleTheme: (theme) =>
+        set(() => {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(themeKey, theme);
+            }
+            return { bubbleTheme: theme };
         }),
 }));
