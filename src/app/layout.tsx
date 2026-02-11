@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PusherProvider } from "@/components/providers/pusher-provider";
+import { FontProvider } from "@/components/providers/font-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,7 +37,9 @@ export default function RootLayout({
           <AuthProvider>
             <PusherProvider>
               <TooltipProvider>
-                {children}
+                <FontProvider>
+                  {children}
+                </FontProvider>
               </TooltipProvider>
             </PusherProvider>
           </AuthProvider>

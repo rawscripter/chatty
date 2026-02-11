@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { CreateChatDialog } from "./create-chat-dialog";
+import { FontSelector } from "@/components/profile/font-selector";
 import { Search, Plus, Lock, Users, MessageSquare, LogOut, MoreHorizontal, User } from "lucide-react";
 import {
     DropdownMenu,
@@ -266,6 +267,10 @@ export function ChatSidebar() {
                                 <LogOut className="w-4 h-4 mr-2" />
                                 <span>Log out</span>
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <div className="p-2">
+                                <FontSelector />
+                            </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

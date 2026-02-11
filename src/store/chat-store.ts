@@ -39,6 +39,10 @@ interface ChatStore {
     // Theme
     bubbleTheme: BubbleTheme;
     setBubbleTheme: (theme: BubbleTheme) => void;
+
+    // Font
+    fontFamily: string;
+    setFontFamily: (font: string) => void;
 }
 
 const notificationMuteKey = "chatty:mute-notifications";
@@ -164,5 +168,15 @@ export const useChatStore = create<ChatStore>((set) => ({
                 window.localStorage.setItem(themeKey, theme);
             }
             return { bubbleTheme: theme };
+        }),
+
+    // Font
+    fontFamily: (typeof window !== "undefined" && window.localStorage.getItem("chatty:font-family")) || "Inter",
+    setFontFamily: (font: string) =>
+        set(() => {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("chatty:font-family", font);
+            }
+            return { fontFamily: font };
         }),
 }));

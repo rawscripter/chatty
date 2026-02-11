@@ -12,6 +12,10 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 import type { IMessage } from "@/types";
@@ -77,7 +81,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
         onSendMessage({
             content: message.trim(),
             type: "text",
-            selfDestructMinutes: selfDestruct || undefined,
+            selfDestructMinutes: selfDestruct > 0 ? selfDestruct / 60 : undefined,
             replyTo: replyTo?._id,
         });
 
@@ -250,7 +254,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     <TextareaAutosize
                         minRows={1}
                         maxRows={8}
-                        placeholder={replyTo ? "Type a reply..." : "Ask Gemini 3"}
+                        placeholder={replyTo ? "Type a reply..." : "Type a message..."}
                         className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-base placeholder:text-muted-foreground/60 min-h-[24px]"
                         value={message}
                         onChange={(e) => {
@@ -303,30 +307,40 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-56 bg-card/95 backdrop-blur-xl border-border/50">
-                                <DropdownMenuItem
-                                    onClick={() => setSelfDestruct(selfDestruct === 0 ? 30 : 0)}
-                                    className="flex items-center justify-between"
-                                >
-                                    <div className="flex items-center">
-                                        <Zap className="w-4 h-4 mr-2" />
-                                        <span>Self Destruct</span>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                        {selfDestruct ? `${selfDestruct}m` : 'Off'}
-                                    </span>
-                                </DropdownMenuItem>
                                 {imageFile && (
-                                    <DropdownMenuItem
-                                        onClick={() => setIsViewOnce(!isViewOnce)}
-                                        className="flex items-center justify-between"
-                                    >
-                                        <div className="flex items-center">
-                                            <ImageIcon className="w-4 h-4 mr-2" />
-                                            <span>View Once</span>
+                                    <>
+                                        <DropdownMenuItem
+                                            onClick={() => setIsViewOnce(!isViewOnce)}
+                                            className="flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center">
+                                                <ImageIcon className="w-4 h-4 mr-2" />
+                                                <span>View Once</span>
+                                            </div>
+                                            {isViewOnce && <span className="text-xs text-emerald-500">On</span>}
+                                        </DropdownMenuItem>
+                                        <div className="flex items-center px-2 py-1.5 text-sm outline-none">
+                                            <Zap className="w-4 h-4 mr-2" />
+                                            <span>Self Destruct</span>
+                                            {selfDestruct > 0 && <span className="ml-auto text-xs text-emerald-500">{selfDestruct < 60 ? `${selfDestruct}s` : `${selfDestruct / 60}m`}</span>}
                                         </div>
-                                        {isViewOnce && <span className="text-xs text-emerald-500">On</span>}
-                                    </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                    </>
                                 )}
+
+                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2 py-1.5">
+                                    Self Destruct Timer
+                                </DropdownMenuLabel>
+                                <DropdownMenuRadioGroup value={selfDestruct.toString()} onValueChange={(val) => setSelfDestruct(Number(val))}>
+                                    <DropdownMenuRadioItem value="0">Off</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="10">10 seconds</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="30">30 seconds</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="60">1 minute</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="300">5 minutes</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="1800">30 minutes</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="3600">1 hour</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="86400">24 hours</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

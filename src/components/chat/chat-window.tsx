@@ -207,6 +207,22 @@ export function ChatWindow() {
         messagesRef.current = messages;
     }, [messages]);
 
+    // Client-side auto-delete for self-destruct messages
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            const expiredMessages = messagesRef.current.filter(
+                (msg) => msg.selfDestructAt && new Date(msg.selfDestructAt) <= now
+            );
+
+            if (expiredMessages.length > 0) {
+                expiredMessages.forEach((msg) => removeMessage(msg._id));
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [removeMessage]);
+
     // Pusher Subscription & Event Handling
     useEffect(() => {
         if (!pusher || !activeChat) return;
