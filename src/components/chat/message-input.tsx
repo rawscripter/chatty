@@ -3,13 +3,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon, X, Eye, Clock, Loader2, Smile, Camera, Sparkles } from "lucide-react";
-import data from "@emoji-mart/data";
-import Picker from "@emoji-mart/react";
+import { Send, Image as ImageIcon, X, Plus, Camera, Sparkles, Zap, LayoutGrid } from "lucide-react";
+import TextareaAutosize from "react-textarea-autosize";
 import { CameraCapture } from "./camera-capture";
 import { GifPicker } from "./gif-picker";
-import { Plus } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,30 +40,10 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance" | "adult">("kissing");
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
-    const [showOptions, setShowOptions] = useState(false);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
-    const emojiPickerRef = useRef<HTMLDivElement>(null);
     const typingTimeout = useRef<NodeJS.Timeout | null>(null);
-
-    // Close emoji picker when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-                setShowEmojiPicker(false);
-            }
-        };
-        if (showEmojiPicker) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [showEmojiPicker]);
-
-    const handleEmojiSelect = (emoji: { native: string }) => {
-        setMessage((prev) => prev + emoji.native);
-    };
 
     const handleTyping = useCallback(() => {
         // Debounce typing indicator via API
@@ -106,7 +83,6 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
 
         setMessage("");
         setSelfDestruct(0);
-        setShowEmojiPicker(false);
         if (onCancelReply) onCancelReply();
 
         // Stop typing
@@ -194,7 +170,6 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
             replyTo: replyTo?._id,
         });
         setMessage("");
-        setShowEmojiPicker(false);
         setShowGifPicker(false);
         if (onCancelReply) onCancelReply();
     };
@@ -207,124 +182,175 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     };
 
     return (
-        <div className="border-t border-border/50 bg-card/50 backdrop-blur-sm p-3">
-            {/* Reply Preview */}
-            <AnimatePresence>
-                {replyTo && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, height: "auto", scale: 1 }}
-                        exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                        className="mb-3 relative bg-muted/50 rounded-xl overflow-hidden border-l-4 border-emerald-500"
-                    >
-                        <div className="p-3 pr-10">
-                            <p className="text-xs font-semibold text-emerald-500 mb-0.5">
-                                Replying to {typeof replyTo.sender === 'string' ? 'User' : replyTo.sender.name}
-                            </p>
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                                {replyTo.type === 'image' ? '📷 Photo' :
-                                    replyTo.type === 'gif' ? '👾 GIF' :
-                                        replyTo.content}
-                            </p>
-                        </div>
-                        <button
-                            onClick={onCancelReply}
-                            className="absolute top-2 right-2 p-1 rounded-full hover:bg-background/80 transition-colors"
+        <div className="p-4 bg-background">
+            <div className={`
+                relative flex flex-col transition-all duration-300
+                bg-muted/30 rounded-[32px] p-2
+                ${message.length > 50 ? 'rounded-[24px]' : ''}
+            `}>
+                {/* Reply Preview */}
+                <AnimatePresence>
+                    {replyTo && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, height: "auto", scale: 1 }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                            className="px-4 pt-2 pb-1"
                         >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Image preview */}
-            <AnimatePresence>
-                {imagePreview && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-3 relative"
-                    >
-                        <div className="relative inline-block">
-                            <img
-                                src={imagePreview}
-                                alt="Preview"
-                                className="h-32 rounded-xl object-cover border border-border/50"
-                            />
-                            <button
-                                type="button"
-                                onClick={clearImage}
-                                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-lg"
-                            >
-                                <X className="w-3 h-3" />
-                            </button>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-2">
-                            {imageFile?.type !== "image/gif" ? (
-                                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={isViewOnce}
-                                        onChange={(e) => setIsViewOnce(e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <Eye className="w-4 h-4 text-amber-500" />
-                                    <span className="text-muted-foreground">View once</span>
-                                </label>
-                            ) : (
-                                <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-muted-foreground">GIF category:</span>
-                                    {(["kissing", "hug", "romance", "adult"] as const).map((category) => (
-                                        <button
-                                            type="button"
-                                            key={category}
-                                            onClick={() => setGifCategory(category)}
-                                            className={`px-2 py-1 rounded-lg text-xs transition-colors ${gifCategory === category
-                                                ? "bg-rose-500/20 text-rose-500 font-medium"
-                                                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                                                }`}
-                                        >
-                                            {category === "kissing" ? "Kissing" : category === "hug" ? "Hug" : "Romance"}
-                                        </button>
-                                    ))}
+                            <div className="flex items-center justify-between bg-background/50 rounded-xl p-2 border border-border/10">
+                                <div className="text-xs">
+                                    <p className="font-semibold text-primary">
+                                        Replying to {typeof replyTo.sender === 'string' ? 'User' : replyTo.sender.name}
+                                    </p>
+                                    <p className="text-muted-foreground line-clamp-1">
+                                        {replyTo.type === 'image' ? '📷 Photo' :
+                                            replyTo.type === 'gif' ? '👾 GIF' :
+                                                replyTo.content}
+                                    </p>
                                 </div>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                <button
+                                    onClick={onCancelReply}
+                                    className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-            {/* Self-destruct selector */}
-            <AnimatePresence>
-                {showOptions && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-3 flex items-center gap-2 text-sm"
-                    >
-                        <Clock className="w-4 h-4 text-amber-500" />
-                        <span className="text-muted-foreground">Self-destruct:</span>
-                        {[0, 5, 30, 60].map((mins) => (
-                            <button
-                                type="button"
-                                key={mins}
-                                onClick={() => setSelfDestruct(mins)}
-                                className={`px-2 py-1 rounded-lg text-xs transition-colors ${selfDestruct === mins
-                                    ? "bg-emerald-500/20 text-emerald-500 font-medium"
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                                    }`}
-                            >
-                                {mins === 0 ? "Off" : `${mins}m`}
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                {/* Image Preview */}
+                <AnimatePresence>
+                    {imagePreview && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="px-4 pt-2"
+                        >
+                            <div className="relative inline-block">
+                                <img
+                                    src={imagePreview}
+                                    alt="Preview"
+                                    className="h-24 rounded-lg object-cover border border-white/10"
+                                />
+                                <button
+                                    onClick={clearImage}
+                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow-sm"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-            {/* Input bar */}
-            <div className="flex items-center gap-2">
+                {/* Text Input Area */}
+                <div className="px-4 pt-2">
+                    <TextareaAutosize
+                        minRows={1}
+                        maxRows={8}
+                        placeholder={replyTo ? "Type a reply..." : "Ask Gemini 3"}
+                        className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-base placeholder:text-muted-foreground/60 min-h-[24px]"
+                        value={message}
+                        onChange={(e) => {
+                            setMessage(e.target.value);
+                            handleTyping();
+                        }}
+                        onKeyDown={handleKeyDown}
+                    />
+                </div>
+
+                {/* Bottom Actions Row */}
+                <div className="flex items-center justify-between px-2 pt-2 pb-1">
+                    <div className="flex items-center gap-2">
+                        {/* Plus Button Menu */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-9 w-9 rounded-full bg-background/50 hover:bg-background text-foreground shrink-0 transition-colors"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-48 bg-card/95 backdrop-blur-xl border-border/50">
+                                <DropdownMenuItem onClick={() => fileRef.current?.click()}>
+                                    <ImageIcon className="w-4 h-4 mr-2" />
+                                    <span>Upload Image</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowCamera(true)}>
+                                    <Camera className="w-4 h-4 mr-2" />
+                                    <span>Camera</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowGifPicker(true)}>
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    <span>GIFs</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Tools Pill */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="h-9 px-3 rounded-full bg-background/50 hover:bg-background text-foreground text-xs font-medium gap-2 transition-colors"
+                                >
+                                    <LayoutGrid className="w-4 h-4" />
+                                    <span>Tools</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56 bg-card/95 backdrop-blur-xl border-border/50">
+                                <DropdownMenuItem
+                                    onClick={() => setSelfDestruct(selfDestruct === 0 ? 30 : 0)}
+                                    className="flex items-center justify-between"
+                                >
+                                    <div className="flex items-center">
+                                        <Zap className="w-4 h-4 mr-2" />
+                                        <span>Self Destruct</span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        {selfDestruct ? `${selfDestruct}m` : 'Off'}
+                                    </span>
+                                </DropdownMenuItem>
+                                {imageFile && (
+                                    <DropdownMenuItem
+                                        onClick={() => setIsViewOnce(!isViewOnce)}
+                                        className="flex items-center justify-between"
+                                    >
+                                        <div className="flex items-center">
+                                            <ImageIcon className="w-4 h-4 mr-2" />
+                                            <span>View Once</span>
+                                        </div>
+                                        {isViewOnce && <span className="text-xs text-emerald-500">On</span>}
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {/* Send Button */}
+                        <Button
+                            size="icon"
+                            onClick={handleSend}
+                            disabled={(!message.trim() && !imageFile) || uploading}
+                            className={`
+                                h-10 w-10 rounded-full transition-all duration-200
+                                ${message.trim() || imageFile
+                                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                    : 'bg-background/50 text-foreground hover:bg-background'
+                                }
+                            `}
+                        >
+                            <Send className="w-5 h-5 ml-0.5" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Hidden File Input */}
                 <input
                     ref={fileRef}
                     type="file"
@@ -333,171 +359,27 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     className="hidden"
                 />
 
-                {/* Desktop: Show all buttons inline */}
-                <div className="hidden md:flex items-center gap-1">
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => fileRef.current?.click()}
-                        className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
-                        disabled={uploading}
-                    >
-                        <ImageIcon className="w-5 h-5" />
-                    </Button>
-
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setShowGifPicker(true)}
-                        className="rounded-full flex-shrink-0 hover:bg-rose-500/10 hover:text-rose-500"
-                        disabled={uploading}
-                    >
-                        <Sparkles className="w-5 h-5" />
-                    </Button>
-
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setShowCamera(true)}
-                        className="rounded-full flex-shrink-0 hover:bg-emerald-500/10 hover:text-emerald-500"
-                        disabled={uploading}
-                    >
-                        <Camera className="w-5 h-5" />
-                    </Button>
-
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setShowOptions(!showOptions)}
-                        className={`rounded-full flex-shrink-0 transition-colors ${showOptions || selfDestruct
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "hover:bg-muted/50"
-                            }`}
-                    >
-                        <Clock className="w-5 h-5" />
-                    </Button>
-                </div>
-
-                {/* Mobile: Show Plus button with Dropdown */}
-                <div className="md:hidden">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="rounded-full flex-shrink-0 hover:bg-muted/50"
-                                disabled={uploading}
-                            >
-                                <Plus className="w-5 h-5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="mb-2 w-48 bg-card/95 backdrop-blur-sm">
-                            <DropdownMenuItem onClick={() => fileRef.current?.click()} className="gap-2 cursor-pointer">
-                                <ImageIcon className="w-4 h-4" />
-                                <span>Photo</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowGifPicker(true)} className="gap-2 cursor-pointer">
-                                <Sparkles className="w-4 h-4" />
-                                <span>GIF / Sticker</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowCamera(true)} className="gap-2 cursor-pointer">
-                                <Camera className="w-4 h-4" />
-                                <span>Camera</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowOptions(!showOptions)} className="gap-2 cursor-pointer">
-                                <Clock className="w-4 h-4" />
-                                <span>Self Destruct</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                {/* Emoji picker */}
-                <div className="relative" ref={emojiPickerRef}>
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className={`rounded-full flex-shrink-0 transition-colors ${showEmojiPicker
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "hover:bg-muted/50"
-                            }`}
-                    >
-                        <Smile className="w-5 h-5" />
-                    </Button>
-
-                    <AnimatePresence>
-                        {showEmojiPicker && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                transition={{ duration: 0.15 }}
-                                className="absolute bottom-12 left-0 z-50"
-                            >
-                                <Picker
-                                    data={data}
-                                    onEmojiSelect={handleEmojiSelect}
-                                    theme="dark"
-                                    previewPosition="none"
-                                    skinTonePosition="search"
-                                    set="native"
-                                    maxFrequentRows={2}
-                                    perLine={8}
-                                />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <Input
-                    placeholder="Type a message..."
-                    value={message}
-                    onChange={(e) => {
-                        setMessage(e.target.value);
-                        handleTyping();
+                <CameraCapture
+                    open={showCamera}
+                    onClose={() => setShowCamera(false)}
+                    onCapture={(file) => {
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert("File too large. Max 5MB.");
+                            return;
+                        }
+                        setImageFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => setImagePreview(reader.result as string);
+                        reader.readAsDataURL(file);
                     }}
-                    onKeyDown={handleKeyDown}
-                    className="flex-1 h-10 bg-muted/50 border-0 focus-visible:ring-emerald-500/50 rounded-full px-4"
-                    disabled={uploading}
                 />
 
-                <motion.div whileTap={{ scale: 0.9 }}>
-                    <Button
-                        size="icon"
-                        onClick={handleSend}
-                        disabled={(!message.trim() && !imageFile) || uploading}
-                        className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 flex-shrink-0 disabled:opacity-50"
-                    >
-                        {uploading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Send className="w-4 h-4" />
-                        )}
-                    </Button>
-                </motion.div>
+                <GifPicker
+                    open={showGifPicker}
+                    onOpenChange={setShowGifPicker}
+                    onSelect={handleGifSelect}
+                />
             </div>
-
-            <CameraCapture
-                open={showCamera}
-                onClose={() => setShowCamera(false)}
-                onCapture={(file) => {
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert("File too large. Max 5MB.");
-                        return;
-                    }
-                    setImageFile(file);
-                    const reader = new FileReader();
-                    reader.onloadend = () => setImagePreview(reader.result as string);
-                    reader.readAsDataURL(file);
-                }}
-            />
-
-            <GifPicker
-                open={showGifPicker}
-                onOpenChange={setShowGifPicker}
-                onSelect={handleGifSelect}
-            />
         </div>
     );
 }
