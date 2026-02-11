@@ -102,12 +102,12 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
     }
 
     return (
-            <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={`group flex gap-2.5 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-            >
+        >
             {/* Avatar */}
             {!isMine && (
                 <Avatar className="w-8 h-8 mt-1 flex-shrink-0">
@@ -138,7 +138,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                         } ${!noPadding && isMine
                             ? "bg-sky-500 text-white rounded-br-md shadow-sm"
                             : !noPadding
-                                ? "bg-white text-foreground rounded-bl-md border border-border/70 shadow-sm"
+                                ? "bg-zinc-800 text-white rounded-bl-md border border-border/10 shadow-sm"
                                 : ""
                         }`}
                 >
@@ -148,9 +148,9 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             type="button"
                             aria-label="Reply preview"
                             className={`mb-2 mx-1 p-2.5 rounded-xl text-xs w-full text-left ${isMine
-                            ? "bg-white/15 text-white/90"
-                            : "bg-black/5 text-foreground/90"} 
-                            border-l-4 ${isMine ? "border-white/40" : "border-border/60"}
+                                ? "bg-white/15 text-white/90"
+                                : "bg-black/20 text-white/90"} 
+                            border-l-4 ${isMine ? "border-white/40" : "border-zinc-600"}
                             backdrop-blur-sm transition-all hover:bg-black/10 cursor-pointer`}
                             onClick={(e) => {
                                 e.stopPropagation();
