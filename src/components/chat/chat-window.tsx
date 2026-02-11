@@ -111,6 +111,26 @@ export function ChatWindow() {
         }
     }, [notificationMuted]);
 
+    const syncLatestMessages = useCallback(async () => {
+        if (!activeChat) return;
+
+        try {
+            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50`);
+            const data = await res.json();
+
+            if (!data.success || !Array.isArray(data.data)) return;
+
+            const existingIds = new Set(messagesRef.current.map((msg) => msg._id));
+            for (const message of data.data as IMessage[]) {
+                if (!existingIds.has(message._id)) {
+                    addMessage(message);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to sync latest messages:", error);
+        }
+    }, [activeChat, addMessage]);
+
     // Fetch only messages (no lock check)
     const loadMessages = useCallback(async () => {
         if (!activeChat) return;
@@ -241,6 +261,7 @@ export function ChatWindow() {
 
         const channelName = `chat-${activeChat._id}`;
         const channel = pusher.subscribe(channelName);
+        const connection = pusher.connection;
 
         const flushPendingReadReceipts = async () => {
             if (!activeChat) return;
@@ -365,18 +386,47 @@ export function ChatWindow() {
             applyChatUpdate(data.chatId, data.lastMessage, data.updatedAt);
         };
 
+        const handleConnected = () => {
+            syncLatestMessages();
+        };
+
         channel.bind("message:new", handleNewMessage);
         channel.bind("typing:update", handleTyping);
         channel.bind("message:read", handleReadReceipt);
         channel.bind("message:viewed-once", handleViewedOnce);
         channel.bind("message:deleted", handleMessageDeleted);
+        channel.bind("pusher:subscription_succeeded", handleConnected);
+        connection.bind("connected", handleConnected);
 
         return () => {
             flushPendingReadReceipts();
+            channel.unbind("pusher:subscription_succeeded", handleConnected);
             channel.unbind_all();
+            connection.unbind("connected", handleConnected);
             pusher.unsubscribe(channelName);
         };
-    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate]);
+    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate, syncLatestMessages]);
+
+    useEffect(() => {
+        if (!activeChat) return;
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                syncLatestMessages();
+            }
+        };
+
+        const handleFocus = () => {
+            syncLatestMessages();
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("focus", handleFocus);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [activeChat, syncLatestMessages]);
 
     // Scroll Management
     const shouldScrollToBottomRef = useRef(false);
