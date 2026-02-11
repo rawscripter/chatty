@@ -503,7 +503,7 @@ export function ChatWindow() {
                     ref={scrollRef}
                     onScroll={handleScroll}
                 >
-                    <div className="py-4 space-y-1 max-w-3xl mx-auto">
+                    <div className="py-4 space-y-1  mx-auto">
                         {messages.length === 0 ? (
                             <div className="text-center py-8">
                                 <p className="text-sm text-muted-foreground">
