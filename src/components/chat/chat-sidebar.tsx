@@ -96,16 +96,16 @@ export function ChatSidebar() {
     };
 
     return (
-        <div className="flex flex-col h-full w-full">
+        <div className="flex flex-col h-full w-full bg-background">
             {/* Header */}
-            <div className="p-4 pb-2 space-y-4">
+            <div className="p-4 pb-3 space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <MessageSquare className="w-4 h-4 text-white" />
+                        <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center border border-border/60">
+                            <MessageSquare className="w-4 h-4 text-foreground" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent">
+                            <h1 className="text-lg font-semibold text-foreground">
                                 Chatty
                             </h1>
                             <p className="text-[10px] text-muted-foreground font-medium leading-none">
@@ -117,19 +117,19 @@ export function ChatSidebar() {
                         size="icon"
                         variant="ghost"
                         onClick={() => setShowCreateDialog(true)}
-                        className="rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors"
+                        className="rounded-full hover:bg-muted transition-colors"
                     >
                         <Plus className="w-5 h-5" />
                     </Button>
                 </div>
 
                 <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-emerald-500 transition-colors" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-sky-600 transition-colors" />
                     <Input
                         placeholder="Search chats..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9 h-10 rounded-full bg-muted/40 border-0 focus-visible:ring-1 focus-visible:ring-emerald-500/50 transition-all font-medium placeholder:text-muted-foreground/50"
+                        className="pl-9 h-10 rounded-full bg-muted/40 border border-transparent focus-visible:ring-1 focus-visible:ring-sky-500/50 focus-visible:border-sky-500/40 transition-all font-medium placeholder:text-muted-foreground/50"
                     />
                 </div>
             </div>
@@ -168,18 +168,18 @@ export function ChatSidebar() {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.05 }}
                                         onClick={() => setActiveChat(chat)}
-                                        className={`w-full flex items-center gap-3 p-3 mx-2 w-[calc(100%-16px)] rounded-xl transition-all duration-200 group relative ${activeChat?._id === chat._id
-                                            ? "bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-emerald-500"
-                                            : "hover:bg-muted/50 border-l-4 border-transparent"
+                                        className={`w-full flex items-center gap-3 p-3 mx-2 w-[calc(100%-16px)] rounded-2xl transition-all duration-150 group relative ${activeChat?._id === chat._id
+                                            ? "bg-accent/50 border border-border/50 shadow-sm"
+                                            : "hover:bg-muted/30 border border-transparent"
                                             }`}
                                     >
                                         {/* Avatar */}
                                         <div className="relative flex-shrink-0">
-                                            <Avatar className={`w-11 h-11 border-2 shadow-sm transition-transform group-hover:scale-105 ${activeChat?._id === chat._id ? "border-emerald-500/30" : "border-transparent"}`}>
+                                            <Avatar className={`w-11 h-11 border border-border/60 bg-muted shadow-sm transition-transform group-hover:scale-105 ${activeChat?._id === chat._id ? "ring-1 ring-border/60" : ""}`}>
                                                 <AvatarFallback
                                                     className={`text-sm font-bold ${chat.type === "group"
-                                                        ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
-                                                        : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+                                                        ? "bg-muted text-foreground"
+                                                        : "bg-muted text-foreground"
                                                         }`}
                                                 >
                                                     {chat.type === "group" ? (
@@ -199,14 +199,14 @@ export function ChatSidebar() {
                                         {/* Chat info */}
                                         <div className="flex-1 min-w-0 text-left">
                                             <div className="flex items-center justify-between mb-0.5">
-                                                <span className={`text-sm truncate flex items-center gap-1.5 ${activeChat?._id === chat._id ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                                                <span className={`text-sm truncate flex items-center gap-1.5 ${activeChat?._id === chat._id ? "font-semibold text-foreground" : "font-medium text-foreground/80"}`}>
                                                     {getChatName(chat, session?.user?.id || "")}
                                                     {chat.isPasswordProtected && (
                                                         <Lock className="w-3 h-3 text-amber-500" />
                                                     )}
                                                 </span>
                                                 {chat.updatedAt && (
-                                                    <span className={`text-[10px] flex-shrink-0 ${activeChat?._id === chat._id ? "text-emerald-500 font-medium" : "text-muted-foreground/70"}`}>
+                                                    <span className={`text-[10px] flex-shrink-0 ${activeChat?._id === chat._id ? "text-sky-600 font-medium" : "text-muted-foreground/70"}`}>
                                                         {formatChatTime(chat.updatedAt)}
                                                     </span>
                                                 )}
@@ -214,7 +214,7 @@ export function ChatSidebar() {
                                             <p className={`text-xs truncate ${activeChat?._id === chat._id ? "text-foreground/80" : "text-muted-foreground"}`}>
                                                 {lastMessage ? (
                                                     <span>
-                                                        {isMe && <span className="text-emerald-500/80">You: </span>}
+                                                        {isMe && <span className="text-sky-600/80">You: </span>}
                                                         {lastMessage.type === 'image' ? '📷 Photo' :
                                                             lastMessage.type === 'gif' ? '👾 GIF' :
                                                                 lastMessage.content}
@@ -233,15 +233,15 @@ export function ChatSidebar() {
             </ScrollArea>
 
             {/* Footer User Profile */}
-            <div className="p-3 mt-auto bg-black/20 backdrop-blur-md border-t border-border/40">
-                <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer group">
-                    <Avatar className="w-9 h-9 border border-border/50">
-                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
+            <div className="p-3 mt-auto bg-background border-t border-border/60">
+                <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer group">
+                    <Avatar className="w-9 h-9 border border-border/60 bg-muted">
+                        <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
                             {getInitials(session?.user?.name || "User")}
                         </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate group-hover:text-emerald-500 transition-colors">
+                        <p className="text-sm font-semibold truncate group-hover:text-sky-600 transition-colors">
                             {session?.user?.name || "User"}
                         </p>
                         <p className="text-[10px] text-muted-foreground truncate">

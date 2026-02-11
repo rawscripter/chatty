@@ -8,7 +8,23 @@ interface TypingUser {
     userName: string;
 }
 
+interface IncomingCall {
+    chatId: string;
+    callerId: string;
+    callerName: string;
+    callerAvatar?: string;
+    signal: any; // Signal data from simple-peer
+}
+
+interface ActiveCall {
+    chatId: string;
+    isVideoEnabled: boolean;
+    isAudioEnabled: boolean;
+    remoteStream?: MediaStream;
+}
+
 interface ChatStore {
+
     // Chats
     chats: IChat[];
     activeChat: IChat | null;
@@ -43,7 +59,20 @@ interface ChatStore {
     // Font
     fontFamily: string;
     setFontFamily: (font: string) => void;
+
+    // Video Call
+    activeCall: ActiveCall | null;
+    incomingCall: IncomingCall | null;
+    setActiveCall: (call: ActiveCall | null) => void;
+    setIncomingCall: (call: IncomingCall | null) => void;
+    endCall: () => void;
+
+    // Settings
+    autoAnswer: boolean;
+    setAutoAnswer: (auto: boolean) => void;
 }
+
+
 
 const notificationMuteKey = "chatty:mute-notifications";
 const initialNotificationMuted =
@@ -179,4 +208,22 @@ export const useChatStore = create<ChatStore>((set) => ({
             }
             return { fontFamily: font };
         }),
+
+    // Video Call
+    activeCall: null,
+    incomingCall: null,
+    setActiveCall: (call) => set({ activeCall: call }),
+    setIncomingCall: (call) => set({ incomingCall: call }),
+    endCall: () => set({ activeCall: null, incomingCall: null }),
+
+    // Settings
+    autoAnswer: (typeof window !== "undefined" && window.localStorage.getItem("chatty:auto-answer") !== "false"), // Default to true if not "false"
+    setAutoAnswer: (auto) => set(() => {
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem("chatty:auto-answer", auto ? "true" : "false");
+        }
+        return { autoAnswer: auto };
+    }),
 }));
+
+

@@ -16,24 +16,24 @@ import { BubbleTheme } from "@/store/chat-store";
 
 const variantStyles = {
     emerald: {
-        bubble: "bg-gradient-to-br from-emerald-500 to-teal-600",
-        fallback: "bg-gradient-to-br from-emerald-500 to-teal-600",
+        bubble: "bg-emerald-500",
+        fallback: "bg-emerald-500",
     },
     blue: {
-        bubble: "bg-gradient-to-br from-blue-500 to-indigo-600",
-        fallback: "bg-gradient-to-br from-blue-500 to-indigo-600",
+        bubble: "bg-blue-500",
+        fallback: "bg-blue-500",
     },
     rose: {
-        bubble: "bg-gradient-to-br from-rose-500 to-pink-600",
-        fallback: "bg-gradient-to-br from-rose-500 to-pink-600",
+        bubble: "bg-rose-500",
+        fallback: "bg-rose-500",
     },
     amber: {
-        bubble: "bg-gradient-to-br from-amber-500 to-orange-600",
-        fallback: "bg-gradient-to-br from-amber-500 to-orange-600",
+        bubble: "bg-amber-500",
+        fallback: "bg-amber-500",
     },
-    violet: { // Keep violet for group default, or just fallback
-        bubble: "bg-gradient-to-br from-violet-500 to-purple-600",
-        fallback: "bg-gradient-to-br from-violet-500 to-purple-600",
+    violet: {
+        bubble: "bg-slate-600",
+        fallback: "bg-slate-600",
     }
 };
 
@@ -102,16 +102,16 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className={`group flex gap-2 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-        >
+            <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className={`group flex gap-2.5 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+            >
             {/* Avatar */}
             {!isMine && (
                 <Avatar className="w-8 h-8 mt-1 flex-shrink-0">
-                    <AvatarFallback className={`text-[10px] font-bold text-white ${variantStyles[variant].fallback}`}>
+                    <AvatarFallback className={`text-[11px] font-semibold text-white ${variantStyles[variant].fallback}`}>
                         {sender.name
                             ?.split(" ")
                             .map((n) => n[0])
@@ -124,7 +124,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
 
             {/* Bubble */}
             <div
-                className={`max-w-[70%] ${isMine ? "items-end" : "items-start"
+                className={`max-w-[68%] ${isMine ? "items-end" : "items-start"
                     }`}
             >
                 {!isMine && (
@@ -134,11 +134,11 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                 )}
 
                 <div
-                    className={`relative shadow-sm ${noPadding ? "p-0 bg-transparent" : "px-3.5 py-2 rounded-2xl"
+                    className={`relative ${noPadding ? "p-0 bg-transparent" : "px-4 py-2.5 rounded-[22px]"
                         } ${!noPadding && isMine
-                            ? `${variantStyles[variant].bubble} text-white rounded-br-md`
+                            ? "bg-sky-500 text-white rounded-br-md shadow-sm"
                             : !noPadding
-                                ? "bg-muted/80 text-foreground rounded-bl-md"
+                                ? "bg-white text-foreground rounded-bl-md border border-border/70 shadow-sm"
                                 : ""
                         }`}
                 >
@@ -148,10 +148,10 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             type="button"
                             aria-label="Reply preview"
                             className={`mb-2 mx-1 p-2.5 rounded-xl text-xs w-full text-left ${isMine
-                            ? "bg-black/20 text-white/90"
+                            ? "bg-white/15 text-white/90"
                             : "bg-black/5 text-foreground/90"} 
-                            border-l-4 ${isMine ? "border-white/40" : "border-emerald-500/50"}
-                            backdrop-blur-sm transition-all hover:bg-black/25 cursor-pointer`}
+                            border-l-4 ${isMine ? "border-white/40" : "border-border/60"}
+                            backdrop-blur-sm transition-all hover:bg-black/10 cursor-pointer`}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 // Optional: Scroll to message logic could go here
@@ -186,7 +186,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             <DropdownMenuTrigger asChild>
                                 <button
                                     type="button"
-                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background/80 shadow-sm border border-border/60 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+                                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background shadow-sm border border-border/60 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
                                     aria-label="Message actions"
                                 >
                                     <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />

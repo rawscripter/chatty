@@ -220,10 +220,10 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     };
 
     return (
-        <div className="p-4 bg-background">
+        <div className="p-3 md:p-4 bg-background border-t border-border/60">
             <div className={`
-                relative flex flex-col transition-all duration-300
-                bg-muted/30 rounded-[32px] p-2
+                relative flex flex-col transition-all duration-150
+                bg-muted/30 rounded-3xl p-2 border border-border/80 shadow-sm
                 ${message.length > 50 ? 'rounded-[24px]' : ''}
             `}>
                 {/* Reply Preview */}
@@ -235,9 +235,9 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             exit={{ opacity: 0, height: 0, scale: 0.95 }}
                             className="px-4 pt-2 pb-1"
                         >
-                            <div className="flex items-center justify-between bg-background/50 rounded-xl p-2 border border-border/10">
+                            <div className="flex items-center justify-between bg-muted/30 rounded-xl p-2 border border-border/60">
                                 <div className="text-xs">
-                                    <p className="font-semibold text-primary">
+                                    <p className="font-semibold text-sky-600">
                                         Replying to {typeof replyTo.sender === 'string' ? 'User' : replyTo.sender.name}
                                     </p>
                                     <p className="text-muted-foreground line-clamp-1">
@@ -291,7 +291,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                         minRows={1}
                         maxRows={8}
                         placeholder={replyTo ? "Type a reply..." : "Type a message..."}
-                        className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-base placeholder:text-muted-foreground/60 min-h-[24px]"
+                        className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-[15px] placeholder:text-muted-foreground/60 min-h-[24px]"
                         value={message}
                         onChange={(e) => {
                             setMessage(e.target.value);
@@ -310,7 +310,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-9 w-9 rounded-full bg-background/50 hover:bg-background text-foreground shrink-0 transition-colors"
+                                    className="h-9 w-9 rounded-full bg-muted/30 hover:bg-muted text-foreground shrink-0 transition-colors"
                                 >
                                     <Plus className="w-5 h-5" />
                                 </Button>
@@ -337,7 +337,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="h-9 w-9 rounded-full bg-background/50 hover:bg-background text-foreground shrink-0 transition-colors"
+                                className="h-9 w-9 rounded-full bg-muted/30 hover:bg-muted text-foreground shrink-0 transition-colors"
                             >
                                 <Smile className="w-5 h-5" />
                             </Button>
@@ -368,7 +368,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="h-9 px-3 rounded-full bg-background/50 hover:bg-background text-foreground text-xs font-medium gap-2 transition-colors"
+                                    className="h-9 px-3 rounded-full bg-muted/30 hover:bg-muted text-foreground text-xs font-medium gap-2 transition-colors"
                                 >
                                     <LayoutGrid className="w-4 h-4" />
                                     <span>Tools</span>
@@ -420,10 +420,10 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             onClick={handleSend}
                             disabled={(!message.trim() && !imageFile) || uploading}
                             className={`
-                                h-10 w-10 rounded-full transition-all duration-200
+                                h-10 w-10 rounded-full transition-all duration-150
                                 ${message.trim() || imageFile
-                                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                    : 'bg-background/50 text-foreground hover:bg-background'
+                                    ? 'bg-sky-500 text-white hover:bg-sky-500/90'
+                                    : 'bg-background/60 text-foreground hover:bg-background'
                                 }
                             `}
                         >

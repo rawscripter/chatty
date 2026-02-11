@@ -6,6 +6,8 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PusherProvider } from "@/components/providers/pusher-provider";
 import { FontProvider } from "@/components/providers/font-provider";
+import { Toaster } from "sonner";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,6 +41,7 @@ export default function RootLayout({
               <TooltipProvider>
                 <FontProvider>
                   {children}
+                  <Toaster richColors position="top-center" />
                 </FontProvider>
               </TooltipProvider>
             </PusherProvider>

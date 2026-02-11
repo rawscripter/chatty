@@ -11,10 +11,11 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuCheckboxItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser, Palette } from "lucide-react";
+import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser, Palette, Video } from "lucide-react";
 import type { IChat, IUser } from "@/types";
 import { BubbleTheme } from "@/store/chat-store";
 
@@ -25,7 +26,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
-    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats, bubbleTheme, setBubbleTheme } = useChatStore();
+    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats, bubbleTheme, setBubbleTheme, autoAnswer, setAutoAnswer } = useChatStore();
     const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
 
     const otherParticipant = chat.type === "direct"
@@ -133,8 +134,20 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
         { id: "amber", name: "Amber", color: "bg-amber-500" },
     ];
 
+    const { setActiveCall } = useChatStore();
+
+    const handleVideoCall = () => {
+        if (!isConnected) return;
+        setActiveCall({
+            chatId: chat._id,
+            isVideoEnabled: true,
+            isAudioEnabled: true
+        });
+    };
+
+
     return (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/50 backdrop-blur-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-background">
             <div className="flex items-center gap-3">
                 {/* Back button (mobile) */}
                 <Button
@@ -151,11 +164,11 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
 
                 {/* Avatar */}
                 <div className="relative">
-                    <Avatar className="w-10 h-10 border-2 border-background">
+                    <Avatar className="w-10 h-10 border border-border/60 bg-muted">
                         <AvatarFallback
-                            className={`text-sm font-bold ${chat.type === "group"
-                                ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
-                                : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+                            className={`text-sm font-semibold ${chat.type === "group"
+                                ? "bg-muted text-foreground"
+                                : "bg-muted text-foreground"
                                 }`}
                         >
                             {chat.type === "group" ? (
@@ -171,7 +184,7 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                         </AvatarFallback>
                     </Avatar>
                     {chat.type === "direct" && isOnline && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-background" />
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-sky-500 rounded-full border-2 border-background" />
                     )}
                 </div>
 
@@ -183,15 +196,28 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                             <Lock className="w-3 h-3 text-amber-500" />
                         )}
                     </h2>
-                    <p className={`text-xs ${isOnline ? "text-emerald-500" : "text-muted-foreground"}`}>
+                    <p className={`text-xs ${isOnline ? "text-sky-600" : "text-muted-foreground"}`}>
                         {statusText}
                     </p>
                 </div>
             </div>
 
             <div className="flex items-center gap-1">
+                {/* Video Call Button */}
+                {chat.type === "direct" && isConnected && (
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        className="rounded-full mr-1 text-muted-foreground hover:text-foreground"
+                        onClick={handleVideoCall}
+                        title="Start Video Call"
+                    >
+                        <Video className="w-5 h-5" />
+                    </Button>
+                )}
+
                 {/* Connection indicator */}
-                <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-emerald-500" : "bg-red-500"}`} />
+                <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-sky-500" : "bg-rose-500"}`} />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -205,6 +231,15 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                             Chat info
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem
+                            checked={autoAnswer}
+                            onCheckedChange={setAutoAnswer}
+                            className="gap-2 cursor-pointer"
+                        >
+                            <Video className="w-4 h-4" />
+                            Auto-Answer Call
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="flex-col items-start gap-2 focus:bg-transparent">
                             <div className="flex items-center gap-2 text-sm">
                                 <Palette className="w-4 h-4" />
@@ -213,6 +248,7 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                             <div className="flex gap-1.5 w-full justify-between px-1">
                                 {themes.map((theme) => (
                                     <button
+                                        type="button"
                                         key={theme.id}
                                         onClick={(e) => {
                                             e.stopPropagation();

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 // SocketProvider removed
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatWindow } from "./chat-window";
+import { VideoCall } from "./video-call";
 import { useChatStore } from "@/store/chat-store";
 import { Input } from "@/components/ui/input";
 
@@ -130,8 +131,7 @@ export function ChatLayout() {
                 setActiveChat(chat);
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, chats, setActiveChat]);
+    }, [session, chats, setActiveChat, activeChat]);
 
     // Track previous active chat to prevent URL synchronization loops
     const prevActiveChatIdRef = useRef<string | null>(activeChat?._id || null);
@@ -208,7 +208,7 @@ export function ChatLayout() {
             )}
             {/* Sidebar - Hidden on mobile when chat is active */}
             <div className={`
-                flex-shrink-0 h-full lg:border-r border-border/50 bg-background lg:bg-card/50 lg:backdrop-blur-sm
+                flex-shrink-0 h-full lg:border-r border-border/60 bg-card
                 ${activeChat ? 'hidden lg:flex w-full lg:w-[340px]' : 'lg:flex w-full lg:w-[340px]'}
             `}>
                 <ChatSidebar />
@@ -221,6 +221,10 @@ export function ChatLayout() {
             `}>
                 <ChatWindow />
             </div>
+
+            {/* Video Call Overlay */}
+            <VideoCall />
         </div>
+
     );
 }

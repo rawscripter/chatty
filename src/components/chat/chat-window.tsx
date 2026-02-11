@@ -568,7 +568,7 @@ export function ChatWindow() {
     // No active chat - empty state
     if (!activeChat) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
+            <div className="flex-1 flex items-center justify-center bg-muted/20">
                 <div className="text-center space-y-4">
                     <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center mx-auto">
                         <MessageSquare className="w-10 h-10 text-emerald-500/50" />
@@ -587,7 +587,7 @@ export function ChatWindow() {
     const chatTyping = typingUsers.get(activeChat._id) || [];
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-background to-muted/10">
+        <div className="flex-1 flex flex-col h-full bg-muted/20">
             <ChatHeader chat={activeChat} />
 
             {/* Messages area */}
@@ -612,11 +612,11 @@ export function ChatWindow() {
                 </div>
             ) : (
                 <div
-                    className="flex-1 overflow-y-auto min-h-0 px-4"
+                    className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6"
                     ref={scrollRef}
                     onScroll={handleScroll}
                 >
-                    <div className="py-4 space-y-1  mx-auto">
+                    <div className="py-5 space-y-2 mx-auto max-w-3xl w-full">
                         {messages.length === 0 ? (
                             <div className="text-center py-8">
                                 <p className="text-sm text-muted-foreground">
