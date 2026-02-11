@@ -216,7 +216,9 @@ export function ChatWindow() {
             );
 
             if (expiredMessages.length > 0) {
-                expiredMessages.forEach((msg) => removeMessage(msg._id));
+                for (const msg of expiredMessages) {
+                    removeMessage(msg._id);
+                }
             }
         }, 1000);
 
@@ -350,7 +352,7 @@ export function ChatWindow() {
         type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
-        gifCategory?: "kissing" | "hug" | "romance" | "adult";
+        gifCategory?: "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
         replyTo?: string;

@@ -31,7 +31,7 @@ interface MessageInputProps {
         type: "text" | "image" | "gif";
         imageUrl?: string;
         cloudinaryPublicId?: string;
-        gifCategory?: "kissing" | "hug" | "romance" | "adult";
+        gifCategory?: "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult";
         isViewOnce?: boolean;
         selfDestructMinutes?: number;
         replyTo?: string;
@@ -43,7 +43,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isViewOnce, setIsViewOnce] = useState(false);
-    const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance" | "adult">("kissing");
+    const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult">("kissing");
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
@@ -167,7 +167,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
         if (fileRef.current) fileRef.current.value = "";
     };
 
-    const handleGifSelect = (gifUrl: string, category: "kissing" | "hug" | "romance" | "adult") => {
+    const handleGifSelect = (gifUrl: string, category: "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult") => {
         onSendMessage({
             content: message.trim() || "",
             type: "gif",
@@ -216,6 +216,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                     </p>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={onCancelReply}
                                     className="p-1 rounded-full hover:bg-muted/50 transition-colors"
                                 >
@@ -242,6 +243,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                     className="h-24 rounded-lg object-cover border border-white/10"
                                 />
                                 <button
+                                    type="button"
                                     onClick={clearImage}
                                     className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow-sm"
                                 >

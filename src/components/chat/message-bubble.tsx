@@ -144,7 +144,10 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                 >
                     {/* Reply Quote */}
                     {message.replyTo && (message.replyTo as IMessage).sender && (
-                        <div className={`mb-2 mx-1 p-2.5 rounded-xl text-xs ${isMine
+                        <button
+                            type="button"
+                            aria-label="Reply preview"
+                            className={`mb-2 mx-1 p-2.5 rounded-xl text-xs w-full text-left ${isMine
                             ? "bg-black/20 text-white/90"
                             : "bg-black/5 text-foreground/90"} 
                             border-l-4 ${isMine ? "border-white/40" : "border-emerald-500/50"}
@@ -175,7 +178,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                                     (message.replyTo as IMessage).content
                                 )}
                             </p>
-                        </div>
+                        </button>
                     )}
 
                     {(canDelete && onDelete) || onReply ? (
@@ -314,7 +317,19 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                                 <span
                                     className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-white backdrop-blur-sm"
                                 >
-                                    GIF · {message.gifCategory === "hug" ? "Hug" : message.gifCategory === "romance" ? "Romance" : "Kissing"}
+                                    GIF · {
+                                        message.gifCategory === "hug"
+                                            ? "Hug"
+                                            : message.gifCategory === "romance"
+                                                ? "Romance"
+                                                : message.gifCategory === "pinch"
+                                                    ? "Pinch"
+                                                    : message.gifCategory === "bite"
+                                                        ? "Bite"
+                                                        : message.gifCategory === "slap"
+                                                            ? "Slap"
+                                                            : "Kissing"
+                                    }
                                 </span>
                                 {/* Overlay timestamp for GIFs */}
                                 <div className="absolute bottom-2 right-2 bg-black/40 px-1.5 py-0.5 rounded text-[10px] text-white/90 flex items-center gap-1 backdrop-blur-sm">

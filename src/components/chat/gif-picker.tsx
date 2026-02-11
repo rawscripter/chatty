@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw } from "lucide-react";
 
-type GifCategory = "kissing" | "hug" | "romance" | "adult";
+type GifCategory = "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult";
 
 interface GifItem {
     id: string;
@@ -28,6 +29,8 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
     const [error, setError] = useState<string | null>(null);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
     const observer = useRef<IntersectionObserver | null>(null);
     const lastGifElementRef = useCallback((node: HTMLDivElement) => {
         if (loading) return;
@@ -43,14 +46,22 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
         if (node) observer.current.observe(node);
     }, [loading, hasMore]);
 
-    // Reset when category or open changes
+    // Reset when open changes
     useEffect(() => {
         if (open) {
             setItems([]);
             setOffset(0);
             setHasMore(true);
         }
-    }, [open, category]);
+    }, [open]);
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setDebouncedQuery(searchQuery.trim());
+        }, 400);
+
+        return () => clearTimeout(timeout);
+    }, [searchQuery]);
 
     useEffect(() => {
         if (!open) return;
@@ -63,10 +74,18 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                 // For Giphy, we use the offset state.
                 // For Adult (random), we effectively fetch a new random batch each time.
                 // We use offset in the URL mainly for Giphy, but also to trigger this effect.
-                const res = await fetch(
-                    `/api/gifs?category=${category}&limit=24&offset=${offset}`,
-                    { signal: controller.signal }
-                );
+                const params = new URLSearchParams({
+                    category,
+                    limit: "24",
+                    offset: String(offset),
+                });
+                if (debouncedQuery) {
+                    params.set("q", debouncedQuery);
+                }
+
+                const res = await fetch(`/api/gifs?${params.toString()}`, {
+                    signal: controller.signal,
+                });
                 const data = await res.json();
 
                 if (!res.ok || !data.success) {
@@ -96,7 +115,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
 
         loadGifs();
         return () => controller.abort();
-    }, [open, category, offset]);
+    }, [open, category, offset, debouncedQuery]);
 
     const handleCategoryChange = (newCategory: GifCategory) => {
         setCategory(newCategory);
@@ -161,8 +180,20 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                     </div>
                 </DialogHeader>
 
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                    {(["kissing", "hug", "romance", "adult"] as const).map((item) => (
+                <div className="space-y-3 mb-4">
+                    <Input
+                        value={searchQuery}
+                        onChange={(event) => {
+                            setSearchQuery(event.target.value);
+                            setItems([]);
+                            setOffset(0);
+                            setHasMore(true);
+                        }}
+                        placeholder="Search GIFs..."
+                        className="h-10 rounded-full bg-muted/40 border-0 focus-visible:ring-1 focus-visible:ring-rose-500/50 transition-all font-medium placeholder:text-muted-foreground/60"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                    {(["kissing", "hug", "romance", "pinch", "bite", "slap", "adult"] as const).map((item) => (
                         <Button
                             key={item}
                             type="button"
@@ -173,9 +204,22 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
                                 }`}
                         >
-                            {item === "kissing" ? "Kissing" : item === "hug" ? "Hug" : item === "romance" ? "Romance" : "Adult"}
+                            {item === "kissing"
+                                ? "Kissing"
+                                : item === "hug"
+                                    ? "Hug"
+                                    : item === "romance"
+                                        ? "Romance"
+                                        : item === "pinch"
+                                            ? "Pinch"
+                                            : item === "bite"
+                                                ? "Bite"
+                                                : item === "slap"
+                                                    ? "Slap"
+                                                    : "Adult"}
                         </Button>
                     ))}
+                    </div>
                 </div>
 
                 {error ? (

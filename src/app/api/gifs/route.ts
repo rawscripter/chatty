@@ -2,16 +2,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { gifRateLimit } from "@/lib/rate-limit";
-const categoryQueries: Record<"kissing" | "hug" | "romance", string> = {
+const categoryQueries: Record<"kissing" | "hug" | "romance" | "pinch" | "bite" | "slap", string> = {
     kissing: "kissing",
     hug: "hug",
     romance: "romance couple",
+    pinch: "pinch",
+    bite: "bite",
+    slap: "slap",
 };
 
-const categoryRatings: Record<"kissing" | "hug" | "romance", string> = {
+const categoryRatings: Record<"kissing" | "hug" | "romance" | "pinch" | "bite" | "slap", string> = {
     kissing: "pg-13",
     hug: "pg-13",
     romance: "pg-13",
+    pinch: "pg-13",
+    bite: "pg-13",
+    slap: "pg-13",
 };
 
 export async function GET(req: NextRequest) {
@@ -28,9 +34,10 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const categoryParam = searchParams.get("category");
-        const category = (categoryParam && ["kissing", "hug", "romance"].includes(categoryParam)
+        const queryParam = searchParams.get("q");
+        const category = (categoryParam && ["kissing", "hug", "romance", "pinch", "bite", "slap"].includes(categoryParam)
             ? categoryParam
-            : "kissing") as "kissing" | "hug" | "romance";
+            : "kissing") as "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap";
 
         const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "24", 10), 1), 36);
         const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
@@ -40,7 +47,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "GIF provider not configured" }, { status: 500 });
         }
 
-        const query = categoryQueries[category];
+        const query = queryParam && queryParam.trim().length > 0 ? queryParam.trim() : categoryQueries[category];
         const rating = categoryRatings[category];
 
         const giphyUrl = new URL("https://api.giphy.com/v1/gifs/search");
