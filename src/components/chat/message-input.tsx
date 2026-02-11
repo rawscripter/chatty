@@ -3,10 +3,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Send, Image as ImageIcon, X, Plus, Camera, Sparkles, Zap, LayoutGrid } from "lucide-react";
+import { Send, Image as ImageIcon, X, Plus, Camera, Sparkles, Zap, LayoutGrid, Smile } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { CameraCapture } from "./camera-capture";
 import { GifPicker } from "./gif-picker";
+import data from "@emoji-mart/data";
+import Picker from "@emoji-mart/react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,6 +45,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [isViewOnce, setIsViewOnce] = useState(false);
     const [gifCategory, setGifCategory] = useState<"kissing" | "hug" | "romance" | "adult">("kissing");
     const [showGifPicker, setShowGifPicker] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
     const [showCamera, setShowCamera] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -294,6 +297,38 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+
+                        {/* Emoji Picker */}
+                        <div className="relative">
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className="h-9 w-9 rounded-full bg-background/50 hover:bg-background text-foreground shrink-0 transition-colors"
+                            >
+                                <Smile className="w-5 h-5" />
+                            </Button>
+                            <AnimatePresence>
+                                {showEmojiPicker && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        className="absolute bottom-12 left-0 z-50 shadow-xl rounded-2xl overflow-hidden border border-border/50"
+                                    >
+                                        <Picker
+                                            data={data}
+                                            onEmojiSelect={(emoji: any) => {
+                                                setMessage((prev) => prev + emoji.native);
+                                            }}
+                                            theme="dark"
+                                            previewPosition="none"
+                                            skinTonePosition="none"
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         {/* Tools Pill */}
                         <DropdownMenu>
