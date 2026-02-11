@@ -51,27 +51,57 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [uploading, setUploading] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+    const lastTypingTrueSentAtRef = useRef(0);
+    const isTypingRef = useRef(false);
+
+    const sendTyping = useCallback(
+        async (isTyping: boolean) => {
+            try {
+                await fetch(`/api/chats/${chatId}/typing`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ isTyping }),
+                });
+            } catch (error) {
+                console.error("Typing update error:", error);
+            }
+        },
+        [chatId]
+    );
+
+    const stopTyping = useCallback(
+        (force = false) => {
+            if (typingTimeout.current) {
+                clearTimeout(typingTimeout.current);
+                typingTimeout.current = null;
+            }
+
+            if (!isTypingRef.current && !force) return;
+            isTypingRef.current = false;
+            void sendTyping(false);
+        },
+        [sendTyping]
+    );
 
     const handleTyping = useCallback(() => {
-        // Debounce typing indicator via API
-        fetch(`/api/chats/${chatId}/typing`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ isTyping: true }),
-        });
+        const now = Date.now();
+        const shouldSendTypingTrue =
+            !isTypingRef.current || now - lastTypingTrueSentAtRef.current >= 900;
+
+        if (shouldSendTypingTrue) {
+            isTypingRef.current = true;
+            lastTypingTrueSentAtRef.current = now;
+            void sendTyping(true);
+        }
 
         if (typingTimeout.current) {
             clearTimeout(typingTimeout.current);
         }
 
         typingTimeout.current = setTimeout(() => {
-            fetch(`/api/chats/${chatId}/typing`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isTyping: false }),
-            });
+            stopTyping();
         }, 2000);
-    }, [chatId]);
+    }, [sendTyping, stopTyping]);
 
     const handleSend = async () => {
         if (imageFile) {
@@ -93,13 +123,14 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
         if (onCancelReply) onCancelReply();
 
         // Stop typing
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        fetch(`/api/chats/${chatId}/typing`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ isTyping: false }),
-        });
+        stopTyping(true);
     };
+
+    useEffect(() => {
+        return () => {
+            stopTyping(true);
+        };
+    }, [stopTyping]);
 
     const handleImageSend = async () => {
         if (!imageFile) return;

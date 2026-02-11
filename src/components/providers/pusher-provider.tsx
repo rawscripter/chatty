@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { pusherClient } from "@/lib/pusher-client";
 
@@ -20,6 +20,8 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     const { data: session } = useSession();
     const [isConnected, setIsConnected] = useState(pusherClient.connection.state === "connected");
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+    const lastOnlineWriteAtRef = useRef(0);
+    const lastSentOnlineStateRef = useRef<boolean | null>(null);
 
     useEffect(() => {
         if (!session?.user?.id) return;
@@ -28,6 +30,20 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
         const updateStatus = async (isOnline: boolean) => {
             try {
                 if (navigator.onLine) {
+                    const now = Date.now();
+                    if (isOnline) {
+                        const recentlySentOnline =
+                            lastSentOnlineStateRef.current === true &&
+                            now - lastOnlineWriteAtRef.current < 60_000;
+
+                        if (recentlySentOnline) return;
+
+                        lastSentOnlineStateRef.current = true;
+                        lastOnlineWriteAtRef.current = now;
+                    } else {
+                        lastSentOnlineStateRef.current = false;
+                    }
+
                     // Use sendBeacon for reliable updates during unload
                     if (!isOnline) {
                         const blob = new Blob([JSON.stringify({ isOnline })], { type: 'application/json' });
@@ -48,9 +64,11 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
         // Set online on mount
         updateStatus(true);
 
-        // Heartbeat every 5 minutes
+        // Heartbeat every 5 minutes (only while visible)
         const heartbeat = setInterval(() => {
-            updateStatus(true);
+            if (document.visibilityState === 'visible') {
+                updateStatus(true);
+            }
         }, 5 * 60 * 1000);
 
         // Handle visibility change (tab switch)

@@ -31,9 +31,60 @@ export async function GET(
         }
 
         const { searchParams } = new URL(req.url);
+        const rawLimit = parseInt(searchParams.get("limit") || "50");
+        const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
+
+        const cursor = searchParams.get("cursor");
         const page = parseInt(searchParams.get("page") || "1");
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const skip = (page - 1) * limit;
+
+        // Cursor-based pagination: fetch messages older than `cursor` (a message id).
+        // Fallback to page/limit skip pagination if no cursor is provided.
+        if (cursor) {
+            const cursorMessage = await Message.findOne({ _id: cursor, chat: chatId })
+                .select("_id createdAt")
+                .lean();
+
+            const query: Record<string, unknown> = { chat: chatId };
+
+            if (cursorMessage?.createdAt && cursorMessage?._id) {
+                query["$or"] = [
+                    { createdAt: { $lt: cursorMessage.createdAt } },
+                    { createdAt: cursorMessage.createdAt, _id: { $lt: cursorMessage._id } },
+                ];
+            } else {
+                // If cursor is invalid/missing, treat as a fresh request.
+            }
+
+            const results = await Message.find(query)
+                .populate("sender", "name email avatar")
+                .populate({
+                    path: "replyTo",
+                    select: "content type sender",
+                    populate: { path: "sender", select: "name" },
+                    strictPopulate: false,
+                })
+                .sort({ createdAt: -1, _id: -1 })
+                .limit(limit + 1)
+                .lean();
+
+            const hasMore = results.length > limit;
+            if (hasMore) results.pop();
+
+            const nextCursor = hasMore && results.length > 0 ? String(results[results.length - 1]._id) : null;
+
+            return NextResponse.json({
+                success: true,
+                data: results.reverse(),
+                pagination: {
+                    limit,
+                    hasMore,
+                    nextCursor,
+                },
+            });
+        }
+
+        const safePage = Number.isFinite(page) ? Math.max(page, 1) : 1;
+        const skip = (safePage - 1) * limit;
 
         const messages = await Message.find({ chat: chatId })
             .populate("sender", "name email avatar")
@@ -43,7 +94,7 @@ export async function GET(
                 populate: { path: "sender", select: "name" },
                 strictPopulate: false
             })
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: -1, _id: -1 })
             .skip(skip)
             .limit(limit)
             .lean();
@@ -54,7 +105,7 @@ export async function GET(
             success: true,
             data: messages.reverse(),
             pagination: {
-                page,
+                page: safePage,
                 limit,
                 total,
                 hasMore: skip + limit < total,

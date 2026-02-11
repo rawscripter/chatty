@@ -40,6 +40,7 @@ export function ChatWindow() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [showPasswordDialog, setShowPasswordDialog] = useState(false);
     const [isUnlocked, setIsUnlocked] = useState(true);
     const [viewOnceMessageId, setViewOnceMessageId] = useState<string | null>(null);
@@ -49,6 +50,9 @@ export function ChatWindow() {
     const messagesRef = useRef<IMessage[]>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
     const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
+
+    const pendingReadMessageIdsRef = useRef<Set<string>>(new Set());
+    const pendingReadFlushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const isAdmin = !!activeChat?.admins?.some((adminId) => String(adminId) === session?.user?.id);
 
@@ -113,14 +117,16 @@ export function ChatWindow() {
         setLoading(true);
         setPage(1);
         setHasMore(true);
+        setNextCursor(null);
 
         try {
-            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50&page=1`);
+            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50`);
             const data = await res.json();
 
             if (data.success) {
                 setMessages(data.data);
                 setHasMore(data.pagination.hasMore);
+                setNextCursor(data.pagination.nextCursor ?? null);
             }
         } catch (error) {
             console.error("Failed to fetch messages:", error);
@@ -130,7 +136,7 @@ export function ChatWindow() {
     }, [activeChat, setMessages]);
 
     const loadMoreMessages = useCallback(async () => {
-        if (!activeChat || !hasMore || loadingMore) return;
+        if (!activeChat || !hasMore || loadingMore || !nextCursor) return;
 
         setLoadingMore(true);
         const nextPage = page + 1;
@@ -141,7 +147,9 @@ export function ChatWindow() {
         const oldScrollTop = scrollContainer?.scrollTop || 0;
 
         try {
-            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50&page=${nextPage}`);
+            const res = await fetch(
+                `/api/chats/${activeChat._id}/messages?limit=50&cursor=${encodeURIComponent(nextCursor)}`
+            );
             const data = await res.json();
 
             if (data.success) {
@@ -149,6 +157,7 @@ export function ChatWindow() {
                     prependMessages(data.data);
                     setPage(nextPage);
                     setHasMore(data.pagination.hasMore);
+                    setNextCursor(data.pagination.nextCursor ?? null);
 
                     // Restore scroll position
                     requestAnimationFrame(() => {
@@ -159,6 +168,7 @@ export function ChatWindow() {
                     });
                 } else {
                     setHasMore(false);
+                    setNextCursor(null);
                 }
             }
         } catch (error) {
@@ -166,7 +176,7 @@ export function ChatWindow() {
         } finally {
             setLoadingMore(false);
         }
-    }, [activeChat, hasMore, loadingMore, page, prependMessages]);
+    }, [activeChat, hasMore, loadingMore, nextCursor, page, prependMessages]);
 
     const handleScroll = useCallback(() => {
         const container = scrollRef.current;
@@ -232,6 +242,43 @@ export function ChatWindow() {
         const channelName = `chat-${activeChat._id}`;
         const channel = pusher.subscribe(channelName);
 
+        const flushPendingReadReceipts = async () => {
+            if (!activeChat) return;
+            const ids = Array.from(pendingReadMessageIdsRef.current);
+            if (ids.length === 0) return;
+
+            pendingReadMessageIdsRef.current.clear();
+            if (pendingReadFlushTimeoutRef.current) {
+                clearTimeout(pendingReadFlushTimeoutRef.current);
+                pendingReadFlushTimeoutRef.current = null;
+            }
+
+            try {
+                await fetch(`/api/chats/${activeChat._id}/read`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ messageIds: ids }),
+                });
+            } catch (error) {
+                console.error("Failed to send read receipts:", error);
+                for (const id of ids) pendingReadMessageIdsRef.current.add(id);
+            }
+        };
+
+        const queueReadReceipt = (messageId: string) => {
+            pendingReadMessageIdsRef.current.add(messageId);
+
+            if (pendingReadMessageIdsRef.current.size >= 25) {
+                flushPendingReadReceipts();
+                return;
+            }
+
+            if (pendingReadFlushTimeoutRef.current) return;
+            pendingReadFlushTimeoutRef.current = setTimeout(() => {
+                flushPendingReadReceipts();
+            }, 600);
+        };
+
         const handleNewMessage = (message: IMessage) => {
             const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
             if (senderId === session?.user?.id) {
@@ -255,11 +302,7 @@ export function ChatWindow() {
 
             if (senderId !== session?.user?.id) {
                 playNotificationSound();
-                fetch(`/api/chats/${activeChat._id}/read`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ messageId: message._id }),
-                });
+                queueReadReceipt(message._id);
             }
 
             // Scroll to bottom for new messages
@@ -278,17 +321,34 @@ export function ChatWindow() {
         };
 
         const handleReadReceipt = (data: {
-            messageId: string;
+            messageId?: string;
+            messageIds?: string[];
             userId: string;
             readAt: string;
         }) => {
-            const currentMessage = messagesRef.current.find((m) => m._id === data.messageId);
-            updateMessage(data.messageId, {
-                readBy: [
-                    ...(currentMessage?.readBy || []),
-                    { user: data.userId, readAt: new Date(data.readAt) },
-                ],
-            });
+            const ids = Array.isArray(data.messageIds)
+                ? data.messageIds
+                : data.messageId
+                    ? [data.messageId]
+                    : [];
+
+            const readAt = new Date(data.readAt);
+            for (const id of ids) {
+                const currentMessage = messagesRef.current.find((m) => m._id === id);
+                const alreadyRead = (currentMessage?.readBy || []).some((r) => {
+                    const readerId = typeof r.user === "string" ? r.user : r.user._id;
+                    return readerId === data.userId;
+                });
+
+                if (alreadyRead) continue;
+
+                updateMessage(id, {
+                    readBy: [
+                        ...(currentMessage?.readBy || []),
+                        { user: data.userId, readAt },
+                    ],
+                });
+            }
         };
 
         const handleViewedOnce = (data: { messageId: string }) => {
@@ -312,6 +372,7 @@ export function ChatWindow() {
         channel.bind("message:deleted", handleMessageDeleted);
 
         return () => {
+            flushPendingReadReceipts();
             channel.unbind_all();
             pusher.unsubscribe(channelName);
         };

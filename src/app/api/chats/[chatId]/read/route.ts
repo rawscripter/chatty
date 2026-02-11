@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
 import Message from "@/models/message";
 import dbConnect from "@/lib/db";
+import Chat from "@/models/chat";
+import { Types } from "mongoose";
 
 export async function POST(
     req: Request,
@@ -14,38 +16,66 @@ export async function POST(
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const { messageId } = await req.json();
+        const body = (await req.json()) as unknown;
+        const parsedBody = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+        const messageId = typeof parsedBody.messageId === "string" ? parsedBody.messageId : null;
+        const messageIdsRaw = Array.isArray(parsedBody.messageIds)
+            ? parsedBody.messageIds
+            : null;
+        const messageIds = messageIdsRaw
+            ? messageIdsRaw.filter((id): id is string => typeof id === "string")
+            : null;
+
         const { chatId } = await params;
 
         await dbConnect();
 
-        // Update DB
-        // Check if already read by user? 
-        // Logic similar to previous socket handler
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return new NextResponse("Message not found", { status: 404 });
+        const chat = await Chat.findOne({ _id: chatId, participants: session.user.id }).select("_id");
+        if (!chat) {
+            return new NextResponse("Chat not found", { status: 404 });
         }
 
-        const alreadyRead = message.readBy.some((r: any) => r.user.toString() === session.user.id);
+        const ids = messageIds && messageIds.length > 0
+            ? Array.from(new Set(messageIds)).slice(0, 100)
+            : messageId
+                ? [messageId]
+                : [];
 
-        if (!alreadyRead) {
-            message.readBy.push({
-                user: session.user.id,
-                readAt: new Date(),
-            });
-            await message.save();
+        if (ids.length === 0) {
+            return new NextResponse("messageId or messageIds is required", { status: 400 });
+        }
 
-            // Trigger Pusher event
+        const userObjectId = new Types.ObjectId(session.user.id);
+        const now = new Date();
+
+        const result = await Message.updateMany(
+            {
+                chat: chatId,
+                _id: { $in: ids },
+                "readBy.user": { $ne: userObjectId },
+            },
+            {
+                $push: {
+                    readBy: {
+                        user: userObjectId,
+                        readAt: now,
+                    },
+                },
+            }
+        );
+
+        if (result.modifiedCount > 0) {
             await pusherServer.trigger(`chat-${chatId}`, "message:read", {
-                messageId,
+                messageId: ids[ids.length - 1],
+                messageIds: ids,
                 userId: session.user.id,
-                readAt: new Date().toISOString(),
+                readAt: now.toISOString(),
                 chatId,
             });
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, data: { messageIds: ids } });
     } catch (error) {
         console.error("[READ_RECEIPT_ERROR]", error);
         return new NextResponse("Internal Error", { status: 500 });
