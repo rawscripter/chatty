@@ -191,7 +191,16 @@ export function VideoCall() {
         peer.on("close", cleanup);
         peer.on("error", (err) => {
             console.error("Peer error:", err);
+            const error = err as any;
+            const errorMessage = error.message || error.toString();
 
+            if (error.code === 'ERR_WEBRTC_SUPPORT') {
+                toast.error("WebRTC Not Supported: Use Chrome/Firefox.");
+            } else if (error.code === 'ERR_ICE_CONNECTION_FAILURE') {
+                toast.error("ICE Fail: Firewall/Network blocking connection. Try WiFi.");
+            } else {
+                toast.error(`Conn Error: ${errorMessage}`);
+            }
             cleanup();
         });
 
@@ -403,14 +412,17 @@ export function VideoCall() {
                 peer.on("close", cleanup);
                 peer.on("error", (err) => {
                     console.error("Peer error:", err);
-                    // More specific error messages
+                    // More specific error messages for debugging
                     const error = err as any;
+                    const errorMessage = error.message || error.toString();
+
                     if (error.code === 'ERR_WEBRTC_SUPPORT') {
-                        toast.error("WebRTC not supported by your browser/network.");
+                        toast.error("WebRTC Not Supported: Use Chrome/Firefox.");
                     } else if (error.code === 'ERR_ICE_CONNECTION_FAILURE') {
-                        toast.error("Connection failed (ICE). Check network/firewall.");
+                        toast.error("ICE Fail: Firewall/Network blocking connection. Try WiFi.");
                     } else {
-                        toast.error(`Call connection error: ${err.message || 'Unknown'}`);
+                        // Show the actual error message to the user for debugging
+                        toast.error(`Conn Error: ${errorMessage}`);
                     }
                     cleanup();
                 });
