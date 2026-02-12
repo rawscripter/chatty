@@ -373,6 +373,13 @@ export function VideoCall() {
                     cleanup();
                 });
 
+                // Replay queued signals (ICE candidates/Answer) for Caller
+                if (queuedSignals.current.length > 0) {
+                    console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
+                    queuedSignals.current.forEach(s => peer.signal(s));
+                    queuedSignals.current = [];
+                }
+
                 connectionRef.current = peer;
             });
         }
