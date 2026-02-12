@@ -24,6 +24,38 @@ export async function POST(req: Request) {
 
         await pusherServer.trigger(channelName, eventName, data);
 
+        // Send Push Notification via Beams if it's an incoming call
+        if (eventName === 'client-incoming-call') {
+            try {
+                const PushNotifications = require('@pusher/push-notifications-server');
+
+                const beamsClient = new PushNotifications({
+                    instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID,
+                    secretKey: process.env.PUSHER_BEAMS_SECRET_KEY,
+                });
+
+                // The channelName is `private-user-${recipientId}`
+                // We format it to match the interest name `user-${recipientId}`
+                // Extract recipientId from channelName
+                const recipientId = channelName.replace('private-user-', '');
+
+                await beamsClient.publishToInterests([`user-${recipientId}`], {
+                    web: {
+                        notification: {
+                            title: `Incoming Video Call`,
+                            body: `${data.userName || 'Someone'} is calling you...`,
+                            icon: data.userAvatar || '/vercel.svg', // Fallback icon
+                            deep_link: `https://${req.headers.get('host')}/chat/${data.chatId}`, // Open the chat
+                        },
+                    },
+                });
+                console.log(`[Pusher Beams] Sent push notification to user-${recipientId}`);
+            } catch (pushError) {
+                console.error("[Pusher Beams] Failed to send push:", pushError);
+                // Don't fail the request if push fails, it's a secondary notification
+            }
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Pusher trigger error:", error);

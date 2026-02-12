@@ -149,6 +149,32 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
         };
     }, [session?.user?.id]);
 
+    // Pusher Beams Initialization
+    useEffect(() => {
+        if (!session?.user?.id) return;
+
+        const initBeams = async () => {
+            try {
+                // Dynamically import to avoid SSR issues
+                const { Client } = await import("@pusher/push-notifications-web");
+
+                const beamsClient = new Client({
+                    instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID || "",
+                });
+
+                await beamsClient.start();
+                await beamsClient.addDeviceInterest(`user-${session.user.id}`);
+                console.log("[Pusher Beams] Successfully registered and subscribed to user interest");
+            } catch (error) {
+                console.error("[Pusher Beams] Failed to register:", error);
+            }
+        };
+
+        if ('serviceWorker' in navigator) {
+            initBeams();
+        }
+    }, [session?.user?.id]);
+
     return (
         <PusherContext.Provider value={{ pusher: pusherClient, isConnected, onlineUsers }}>
             {children}

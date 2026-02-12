@@ -26,6 +26,20 @@ export function VideoCall() {
     const connectionRef = useRef<SimplePeerInstance | null>(null);
     const isAcceptingRef = useRef(false);
 
+    // Effect to attach local stream to video element
+    useEffect(() => {
+        if (localVideoRef.current && stream) {
+            localVideoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    // Effect to attach remote stream to video element
+    useEffect(() => {
+        if (remoteVideoRef.current && remoteStream) {
+            remoteVideoRef.current.srcObject = remoteStream;
+        }
+    }, [remoteStream]);
+
     const queuedSignals = useRef<SignalData[]>([]);
 
     // cleanup on unmount or end call
@@ -130,6 +144,12 @@ export function VideoCall() {
             initiator: false,
             trickle: true, // Enable trickle ICE
             stream: myStream,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
         });
 
         peer.on("signal", (signal) => {
@@ -163,7 +183,7 @@ export function VideoCall() {
         peer.on("close", cleanup);
         peer.on("error", (err) => {
             console.error("Peer error:", err);
-            toast.error("Call connection error.");
+
             cleanup();
         });
 
@@ -309,6 +329,12 @@ export function VideoCall() {
                     initiator: true,
                     trickle: true,
                     stream: myStream,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478' }
+                        ]
+                    }
                 });
 
                 peer.on("signal", (signal) => {
@@ -369,7 +395,15 @@ export function VideoCall() {
                 peer.on("close", cleanup);
                 peer.on("error", (err) => {
                     console.error("Peer error:", err);
-                    toast.error("Call connection error.");
+                    // More specific error messages
+                    const error = err as any;
+                    if (error.code === 'ERR_WEBRTC_SUPPORT') {
+                        toast.error("WebRTC not supported by your browser/network.");
+                    } else if (error.code === 'ERR_ICE_CONNECTION_FAILURE') {
+                        toast.error("Connection failed (ICE). Check network/firewall.");
+                    } else {
+                        toast.error(`Call connection error: ${err.message || 'Unknown'}`);
+                    }
                     cleanup();
                 });
 
