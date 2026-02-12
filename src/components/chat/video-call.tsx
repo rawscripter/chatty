@@ -67,8 +67,16 @@ export function VideoCall() {
                 endCall();
                 return null;
             }
-            // Disable audio for now
-            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            // Disable audio for now, use mobile-friendly video constraints
+            const currentStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "user",
+                    // Use ideal low resolution for better mobile performance/bandwidth
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: false
+            });
             setStream(currentStream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = currentStream;
