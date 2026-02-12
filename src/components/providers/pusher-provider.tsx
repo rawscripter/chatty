@@ -167,6 +167,14 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
                 console.log("[Pusher Beams] Successfully registered and subscribed to user interest");
             } catch (error) {
                 console.error("[Pusher Beams] Failed to register:", error);
+
+                // Do NOT block the app, but log it and maybe warn if critical
+                // Common error: "Registration failed - permission denied"
+                const errMessage = (error as any).toString();
+                if (errMessage.includes("permission denied")) {
+                    console.log("[Pusher Beams] Notifications permission denied by user.");
+                    // Optionally: toast("Please enable notifications to receive call alerts.");
+                }
             }
         };
 

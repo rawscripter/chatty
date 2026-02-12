@@ -84,7 +84,18 @@ export function VideoCall() {
             return currentStream;
         } catch (error) {
             console.error("Failed to access media devices:", error);
-            toast.error("Failed to access camera");
+            const err = error as Error;
+
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                toast.error("Camera access denied. Please allow permissions in browser settings.");
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                toast.error("No camera found/detected.");
+            } else if (err.name === 'AbortError') {
+                toast.error("Camera request aborted/dismissed.");
+            } else {
+                toast.error(`Error accessing camera: ${err.message}`);
+            }
+
             endCall();
             return null;
         }
@@ -140,6 +151,22 @@ export function VideoCall() {
             return;
         }
 
+        // Fetch TURN credentials
+        let iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+        ];
+        try {
+            const res = await fetch('/api/turn-credentials');
+            const turnServers = await res.json();
+            if (Array.isArray(turnServers)) {
+                iceServers = [...iceServers, ...turnServers];
+            }
+            console.log("[VideoCall] Loaded ICE servers:", iceServers.length);
+        } catch (error) {
+            console.error("Failed to load TURN servers:", error);
+        }
+
         setActiveCall({
             chatId: incomingCall.chatId,
             isVideoEnabled: true,
@@ -150,13 +177,10 @@ export function VideoCall() {
 
         const peer = new SimplePeer({
             initiator: false,
-            trickle: true, // Enable trickle ICE
+            trickle: true,
             stream: myStream,
             config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' }
-                ]
+                iceServers: iceServers
             }
         });
 
@@ -336,10 +360,26 @@ export function VideoCall() {
             console.log("[VideoCall] Initiating call to:", recipientId);
 
             // I am initiating the call
-            initStream().then((myStream) => {
+            initStream().then(async (myStream) => {
                 if (!myStream) {
                     cleanup(); // Ensure cleanup if stream fails
                     return;
+                }
+
+                // Fetch TURN credentials
+                let iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ];
+                try {
+                    const res = await fetch('/api/turn-credentials');
+                    const turnServers = await res.json();
+                    if (Array.isArray(turnServers)) {
+                        iceServers = [...iceServers, ...turnServers];
+                    }
+                    console.log("[VideoCall] Loaded ICE servers (Caller):", iceServers.length);
+                } catch (error) {
+                    console.error("Failed to load TURN servers:", error);
                 }
 
                 const peer = new SimplePeer({
@@ -347,10 +387,7 @@ export function VideoCall() {
                     trickle: true,
                     stream: myStream,
                     config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:global.stun.twilio.com:3478' }
-                        ]
+                        iceServers: iceServers
                     }
                 });
 
