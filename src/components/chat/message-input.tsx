@@ -298,6 +298,88 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             handleTyping();
                         }}
                         onKeyDown={handleKeyDown}
+                        onPaste={(e) => {
+                            const items = e.clipboardData?.items;
+                            if (!items) return;
+
+                            // Extract potential items
+                            const htmlItem = Array.from(items).find(item => item.type === "text/html");
+                            const imageItem = Array.from(items).find(item => item.type.indexOf("image") !== -1);
+
+                            // If we have HTML content, try to find a GIF URL first (handles "Copy Image" from web)
+                            if (htmlItem) {
+                                // Get the file synchronously just in case we need it as fallback
+                                const fallbackFile = imageItem ? imageItem.getAsFile() : null;
+
+                                htmlItem.getAsString((html) => {
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(html, "text/html");
+                                    const img = doc.querySelector("img");
+
+                                    // Check if the image source is a GIF
+                                    if (img && img.src && (img.src.match(/\.gif(\?.*)?$/i) || img.src.includes("giphy.com"))) {
+                                        e.preventDefault();
+                                        onSendMessage({
+                                            content: message.trim() || "",
+                                            type: "gif",
+                                            imageUrl: img.src,
+                                            gifCategory: "kissing",
+                                            isViewOnce: false,
+                                            replyTo: replyTo?._id,
+                                        });
+                                        setMessage("");
+                                        if (onCancelReply) onCancelReply();
+                                        return;
+                                    } else {
+                                        // Fallback: It wasn't a GIF in HTML, process as file if available
+                                        if (fallbackFile) {
+                                            if (fallbackFile.size > 5 * 1024 * 1024) {
+                                                alert("File too large. Max 5MB.");
+                                                return;
+                                            }
+
+                                            setImageFile(fallbackFile);
+                                            if (fallbackFile.type === "image/gif") {
+                                                setGifCategory("kissing");
+                                                setIsViewOnce(false);
+                                            }
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setImagePreview(reader.result as string);
+                                            reader.readAsDataURL(fallbackFile);
+                                        }
+                                    }
+                                });
+                                // We prevented default by potentially handling async, so we must stop immediate paste
+                                // Wait, if we return here without preventDefault, the text paste might happen?
+                                // Actually, we only want to prevent if we are handling it.
+                                // If we have HTML + Image, we probably want to intercept.
+                                if (imageItem) e.preventDefault();
+                                return;
+                            }
+
+                            // Standard File Paste (if no HTML or if logic above didn't match)
+                            // This handles direct file copy/screenshots which might not have HTML
+                            if (imageItem) {
+                                const file = imageItem.getAsFile();
+                                if (file) {
+                                    e.preventDefault();
+                                    if (file.size > 5 * 1024 * 1024) {
+                                        alert("File too large. Max 5MB.");
+                                        return;
+                                    }
+
+                                    setImageFile(file);
+                                    if (file.type === "image/gif") {
+                                        setGifCategory("kissing");
+                                        setIsViewOnce(false);
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => setImagePreview(reader.result as string);
+                                    reader.readAsDataURL(file);
+                                    return;
+                                }
+                            }
+                        }}
                     />
                 </div>
 
