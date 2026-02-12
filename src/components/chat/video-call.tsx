@@ -102,10 +102,20 @@ export function VideoCall() {
                 },
                 audio: false
             });
-            setStream(currentStream);
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = currentStream;
+
+            // Only update state if still mounted
+            if (isMounted.current) {
+                setStream(currentStream);
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = currentStream;
+                    localVideoRef.current.play().catch(e => console.error("Error playing local video:", e));
+                }
+            } else {
+                // If unmounted during stream init, stop tracks immediately
+                currentStream.getTracks().forEach(track => track.stop());
+                return null;
             }
+
             return currentStream;
         } catch (error) {
             console.error("Failed to access media devices:", error);
@@ -122,6 +132,7 @@ export function VideoCall() {
             }
 
             endCall();
+            return null;
         }
     }, [endCall]);
 
@@ -136,24 +147,35 @@ export function VideoCall() {
 
     // Handle incoming call signal (answer) from remote peer
     const handleSignal = useCallback((data: { signal: SignalData; userId: string }) => {
-        // If we have a connection, signal it
+        // If we have a connection and it's not destroyed, signal it
         if (connectionRef.current && !connectionRef.current.destroyed) {
             console.log("[VideoCall] Signaling peer with received data:", data.signal.type);
-            connectionRef.current.signal(data.signal);
+            try {
+                connectionRef.current.signal(data.signal);
+            } catch (err) {
+                console.error("[VideoCall] Error signaling peer:", err);
+            }
         } else {
-            // If we don't have a connection yet, but we are in incoming call state or establishing, queue it
+            // Check if this signal belongs to the current interaction
             const currentIncomingCall = incomingCallRef.current;
             const currentActiveCall = activeCallRef.current;
+            const isRelevant =
+                (currentIncomingCall?.callerId === data.userId) ||
+                (currentActiveCall?.remoteUserId === data.userId);
 
-            if (currentIncomingCall?.callerId === data.userId || currentActiveCall?.remoteUserId === data.userId) {
+            if (isRelevant) {
                 console.log("[VideoCall] Queueing signal (peer not ready):", data.signal.type);
                 queuedSignals.current.push(data.signal);
+            } else {
+                console.warn("[VideoCall] Ignoring signal for unknown/inactive user:", data.userId);
             }
         }
-    }, []); // No dependencies needed due to refs
+    }, []);
 
     // Handle end call signal from remote peer
     const handleRemoteEndCall = useCallback(() => {
+        console.log("[VideoCall] Remote end call received");
+        toast.info("Call ended by remote user");
         cleanup();
     }, [cleanup]);
 
@@ -183,12 +205,17 @@ export function VideoCall() {
         try {
             const res = await fetch('/api/turn-credentials');
             const turnServers = await res.json();
-            if (Array.isArray(turnServers)) {
+            if (Array.isArray(turnServers) && turnServers.length > 0) {
                 iceServers = [...iceServers, ...turnServers];
             }
             console.log("[VideoCall] Loaded ICE servers:", iceServers.length);
         } catch (error) {
             console.error("Failed to load TURN servers:", error);
+        }
+
+        if (!isMounted.current) {
+            isAcceptingRef.current = false;
+            return;
         }
 
         setActiveCall({
@@ -208,7 +235,9 @@ export function VideoCall() {
             }
         });
 
+        // Setup Peer Event Listeners
         peer.on("signal", (signal) => {
+            // Signal (Answer/Candidate) to caller
             console.log("[VideoCall] Sending Signal (Answer/Candidate) to private channel:", `private-user-${incomingCall.callerId}`);
             fetch("/api/pusher/trigger", {
                 method: "POST",
@@ -229,6 +258,7 @@ export function VideoCall() {
             setRemoteStream(currentRemoteStream);
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = currentRemoteStream;
+                remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
             }
         });
 
@@ -236,7 +266,11 @@ export function VideoCall() {
             console.log("[VideoCall] Peer Connected (Callee)!");
         });
 
-        peer.on("close", cleanup);
+        peer.on("close", () => {
+            console.log("[VideoCall] Peer closed (Callee)");
+            cleanup();
+        });
+
         peer.on("error", (err) => {
             console.error("Peer error:", err);
             const error = err as any;
@@ -245,23 +279,34 @@ export function VideoCall() {
             if (error.code === 'ERR_WEBRTC_SUPPORT') {
                 toast.error("WebRTC Not Supported: Use Chrome/Firefox.");
             } else if (error.code === 'ERR_ICE_CONNECTION_FAILURE') {
-                toast.error("ICE Fail: Firewall/Network blocking connection. Try WiFi.");
+                toast.error("Connection failed. Check network/firewall.");
             } else {
                 toast.error(`Conn Error: ${errorMessage}`);
             }
             cleanup();
         });
 
-        peer.signal(incomingCall.signal);
-
-        // Assign connection ref BEFORE replaying queued signals
+        // 1. Assign connection ref FIRST
         connectionRef.current = peer;
 
-        // Replay queued signals (ICE candidates)
+        // 2. Process initial Offer (must happen after event listeners are set)
+        try {
+            peer.signal(incomingCall.signal);
+        } catch (e) {
+            console.error("Error signaling initial offer:", e);
+            cleanup();
+            return;
+        }
+
+        // 3. Replay queued signals (ICE candidates that arrived while getting stream/creds)
         if (queuedSignals.current.length > 0) {
             console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals`);
             queuedSignals.current.forEach(s => {
-                peer.signal(s);
+                try {
+                    peer.signal(s);
+                } catch (e) {
+                    console.error("Error replaying signal:", e);
+                }
             });
             queuedSignals.current = [];
         }
@@ -288,15 +333,13 @@ export function VideoCall() {
             // Clear any old queued signals on new call
             queuedSignals.current = [];
 
-            // We can read autoAnswer from store hook directly in component context if needed,
-            // but relying on the prop/state here might be tricky inside a closure if it's not in deps.
-            // However, we want this effect STABLE.
-            // setIncomingCall is stable.
-            // We need to check autoAnswer state...
-            // Ideally we just set incoming call and let the other AutoAnswer effect handle it.
-            // But we need to define the object with correctly formatted data.
+            // If we are already in a call, maybe reject or ignore?
+            // For now, let's just overwrite (or could show 'busy')
+            if (activeCallRef.current) {
+                console.warn("Already in call, ignoring new incoming call");
+                return;
+            }
 
-            // We'll trust that we just set the incoming call and regular logic flows.
             setIncomingCall({
                 chatId: data.chatId,
                 callerId: data.userId,
@@ -334,7 +377,7 @@ export function VideoCall() {
             privateUserChannel.unbind("client-end-call");
             pusher.unsubscribe(privateUserChannelName);
         };
-    }, [pusher, session?.user?.id, handleSignal, handleRemoteEndCall, setIncomingCall]);
+    }, [pusher, session?.user?.id, handleSignal, handleRemoteEndCall, setIncomingCall]); // Dependencies are stable refs or store setters
 
     // Auto-Answer Effect
     useEffect(() => {
@@ -357,7 +400,15 @@ export function VideoCall() {
         // This effect should only run if we are the initiator, not if we are accepting an incoming call.
         // `incomingCall` being null and `!isAcceptingRef.current` helps distinguish.
         // Also ensure we have an activeChat with participants to find the recipient.
-        if (activeCall && !connectionRef.current && !incomingCall && !isAcceptingRef.current && !isInitializingRef.current) {
+
+        const shouldInitiate =
+            activeCall &&
+            !connectionRef.current &&
+            !incomingCall &&
+            !isAcceptingRef.current &&
+            !isInitializingRef.current;
+
+        if (shouldInitiate) {
 
             // Find recipient ID - We need to know who we are calling to send signals to their private channel
             let recipientId = activeCall.remoteUserId;
@@ -399,12 +450,17 @@ export function VideoCall() {
                 try {
                     const res = await fetch('/api/turn-credentials');
                     const turnServers = await res.json();
-                    if (Array.isArray(turnServers)) {
+                    if (Array.isArray(turnServers) && turnServers.length > 0) {
                         iceServers = [...iceServers, ...turnServers];
                     }
                     console.log("[VideoCall] Loaded ICE servers (Caller):", iceServers.length);
                 } catch (error) {
                     console.error("Failed to load TURN servers:", error);
+                }
+
+                if (!isMounted.current) {
+                    isInitializingRef.current = false;
+                    return;
                 }
 
                 const peer = new SimplePeer({
@@ -463,6 +519,11 @@ export function VideoCall() {
                     console.log("[VideoCall] Received remote stream (Caller)");
                     setRemoteStream(currentRemoteStream);
 
+                    if (remoteVideoRef.current) {
+                        remoteVideoRef.current.srcObject = currentRemoteStream;
+                        remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
+                    }
+
                     // Log tracks for debugging black screen
                     const vTracks = currentRemoteStream.getVideoTracks();
                     const aTracks = currentRemoteStream.getAudioTracks();
@@ -477,7 +538,11 @@ export function VideoCall() {
                     toast.success("Call connected!");
                 });
 
-                peer.on("close", cleanup);
+                peer.on("close", () => {
+                    console.log("[VideoCall] Peer Closed (Caller)");
+                    cleanup();
+                });
+
                 peer.on("error", (err) => {
                     console.error("Peer error:", err);
                     // More specific error messages for debugging
@@ -487,7 +552,7 @@ export function VideoCall() {
                     if (error.code === 'ERR_WEBRTC_SUPPORT') {
                         toast.error("WebRTC Not Supported: Use Chrome/Firefox.");
                     } else if (error.code === 'ERR_ICE_CONNECTION_FAILURE') {
-                        toast.error("ICE Fail: Firewall/Network blocking connection. Try WiFi.");
+                        toast.error("Connection failed. Check network/firewall.");
                     } else {
                         // Show the actual error message to the user for debugging
                         toast.error(`Conn Error: ${errorMessage}`);
@@ -496,18 +561,20 @@ export function VideoCall() {
                 });
 
                 // Assign connection ref BEFORE replaying signals
-                // This ensures that any NEW signals coming in during replay (or immediately after)
-                // are handled by handleSignal directly, instead of being queued.
                 connectionRef.current = peer;
 
                 // Replay queued signals (ICE candidates/Answer) for Caller
-        if (queuedSignals.current.length > 0) {
-            console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
-            queuedSignals.current.forEach(s => {
-                peer.signal(s);
-            });
-            queuedSignals.current = [];
-        }
+                if (queuedSignals.current.length > 0) {
+                    console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
+                    queuedSignals.current.forEach(s => {
+                        try {
+                            peer.signal(s);
+                        } catch (e) {
+                            console.error("Error replaying signal (Caller):", e);
+                        }
+                    });
+                    queuedSignals.current = [];
+                }
 
                 // Initialization complete
                 isInitializingRef.current = false;
