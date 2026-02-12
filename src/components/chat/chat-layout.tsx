@@ -131,7 +131,7 @@ export function ChatLayout() {
                 setActiveChat(chat);
             }
         }
-    }, [session, chats, setActiveChat, activeChat]);
+    }, [session, chats, setActiveChat]);
 
     // Track previous active chat to prevent URL synchronization loops
     const prevActiveChatIdRef = useRef<string | null>(activeChat?._id || null);
