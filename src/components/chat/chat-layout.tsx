@@ -206,25 +206,34 @@ export function ChatLayout() {
                     </div>
                 </div>
             )}
-            {/* Sidebar - Hidden on mobile when chat is active */}
-            <div className={`
-                flex-shrink-0 h-full lg:border-r border-border/60 bg-card
-                ${activeChat ? 'hidden lg:flex w-full lg:w-[340px]' : 'lg:flex w-full lg:w-[340px]'}
-            `}>
-                <ChatSidebar />
-            </div>
 
-            {/* Chat Window - Hidden on mobile when no chat active */}
-            <div className={`
-                flex-1 flex-col min-w-0 h-full
-                ${activeChat ? 'flex' : 'hidden lg:flex'}
-            `}>
-                <ChatWindow />
+            {/* Desktop: Split View | Mobile: Slide Transition */}
+            <div className="flex w-full h-full relative">
+                {/* Sidebar Container */}
+                <div
+                    className={`
+                        absolute inset-0 z-10 lg:static lg:z-auto lg:flex lg:w-[340px] xl:w-[380px] 
+                        flex-col border-r border-border/40 bg-sidebar-background transition-transform duration-300 ease-in-out
+                        ${activeChat ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}
+                    `}
+                >
+                    <ChatSidebar />
+                </div>
+
+                {/* Chat Window Container */}
+                <div
+                    className={`
+                       absolute inset-0 z-20 lg:static lg:z-auto lg:flex-1
+                       flex flex-col bg-background transition-transform duration-300 ease-in-out
+                       ${activeChat ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+                    `}
+                >
+                    <ChatWindow />
+                </div>
             </div>
 
             {/* Video Call Overlay */}
             <VideoCall />
         </div>
-
     );
 }

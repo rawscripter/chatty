@@ -14,6 +14,7 @@ import { ViewOnceModal } from "./view-once-modal";
 import { ImageViewer } from "./image-viewer";
 import { MessageSquare, Loader2, Lock } from "lucide-react";
 import type { IMessage } from "@/types";
+import { ChatEffects, ChatEffectType } from "./chat-effects";
 import { Button } from "@/components/ui/button";
 
 export function ChatWindow() {
@@ -50,6 +51,21 @@ export function ChatWindow() {
     const messagesRef = useRef<IMessage[]>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
     const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
+    const [currentEffect, setCurrentEffect] = useState<ChatEffectType>(null);
+
+    const triggerEffect = (text: string) => {
+        if (!text) return;
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes("happy birthday") || lowerText.includes("hbd")) {
+            setCurrentEffect("balloons");
+        } else if (lowerText.includes("love") || lowerText.includes("❤️") || lowerText.includes("<3") || lowerText.includes("i love you")) {
+            setCurrentEffect("hearts");
+        } else if (lowerText.includes("congrats") || lowerText.includes("woohoo") || lowerText.includes("congratulations")) {
+            setCurrentEffect("confetti");
+        } else if (lowerText.includes("bubbles")) {
+            setCurrentEffect("bubbles");
+        }
+    };
 
     const pendingReadMessageIdsRef = useRef<Set<string>>(new Set());
     const pendingReadFlushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -323,6 +339,7 @@ export function ChatWindow() {
 
             if (senderId !== session?.user?.id) {
                 playNotificationSound();
+                triggerEffect(message.content);
                 queueReadReceipt(message._id);
             }
 
@@ -390,10 +407,15 @@ export function ChatWindow() {
             syncLatestMessages();
         };
 
+        const handleReaction = (data: { messageId: string; chatId: string; reactions: any[] }) => {
+            updateMessage(data.messageId, { reactions: data.reactions });
+        };
+
         channel.bind("message:new", handleNewMessage);
         channel.bind("typing:update", handleTyping);
         channel.bind("message:read", handleReadReceipt);
         channel.bind("message:viewed-once", handleViewedOnce);
+        channel.bind("message:reaction", handleReaction);
         channel.bind("message:deleted", handleMessageDeleted);
         channel.bind("pusher:subscription_succeeded", handleConnected);
         connection.bind("connected", handleConnected);
@@ -471,6 +493,7 @@ export function ChatWindow() {
         if (!activeChat || !session?.user) return;
 
         // Optimistic Update
+        triggerEffect(data.content);
         const tempId = `temp-${Date.now()}`;
         const tempMessage: IMessage = {
             _id: tempId,
@@ -495,6 +518,7 @@ export function ChatWindow() {
             viewOnceViewed: false,
             viewedBy: [],
             readBy: [],
+            reactions: [],
             createdAt: new Date(),
             updatedAt: new Date(),
             replyTo: replyingTo || undefined,
@@ -587,7 +611,9 @@ export function ChatWindow() {
     const chatTyping = typingUsers.get(activeChat._id) || [];
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-muted/20">
+        <div className="flex flex-col h-full w-full bg-background relative">
+            <ChatEffects effect={currentEffect} onComplete={() => setCurrentEffect(null)} />
+            {/* Header */}
             <ChatHeader chat={activeChat} />
 
             {/* Messages area */}
@@ -647,6 +673,18 @@ export function ChatWindow() {
                                         }
                                         variant={bubbleTheme}
                                         onReply={setReplyingTo}
+                                        onReact={async (emoji) => {
+                                            try {
+                                                await fetch(`/api/messages/${msg._id}/react`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ emoji }),
+                                                });
+                                            } catch (error) {
+                                                console.error("Failed to react:", error);
+                                            }
+                                        }}
+                                        onTriggerEffect={triggerEffect}
                                     />
                                 ))}
                             </>

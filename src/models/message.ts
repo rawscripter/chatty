@@ -12,6 +12,7 @@ export interface IMessageDocument extends mongoose.Document {
     viewOnceViewed: boolean;
     viewedBy: { user: mongoose.Types.ObjectId; viewedAt: Date }[];
     readBy: { user: mongoose.Types.ObjectId; readAt: Date }[];
+    reactions: { user: mongoose.Types.ObjectId; emoji: string; createdAt: Date }[];
     replyTo?: mongoose.Types.ObjectId;
     selfDestructAt?: Date;
     createdAt: Date;
@@ -65,6 +66,13 @@ const MessageSchema = new Schema<IMessageDocument>(
             {
                 user: { type: Schema.Types.ObjectId, ref: "User" },
                 readAt: { type: Date, default: Date.now },
+            },
+        ],
+        reactions: [
+            {
+                user: { type: Schema.Types.ObjectId, ref: "User" },
+                emoji: { type: String, required: true },
+                createdAt: { type: Date, default: Date.now },
             },
         ],
         replyTo: {

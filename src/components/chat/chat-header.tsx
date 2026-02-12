@@ -148,7 +148,7 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
 
 
     return (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-background">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center gap-3">
                 {/* Back button (mobile) */}
                 <Button

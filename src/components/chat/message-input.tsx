@@ -220,11 +220,12 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     };
 
     return (
-        <div className="p-3 md:p-4 bg-background border-t border-border/60">
+        <div className="p-4 bg-background z-10">
             <div className={`
-                relative flex flex-col transition-all duration-150
-                bg-muted/30 rounded-3xl p-2 border border-border/80 shadow-sm
-                ${message.length > 50 ? 'rounded-[24px]' : ''}
+                relative flex flex-col transition-all duration-200
+                bg-secondary/50 backdrop-blur-sm rounded-[24px] border border-border/50 shadow-sm
+                focus-within:shadow-md focus-within:bg-secondary/80 focus-within:border-primary/20
+                ${message.length > 50 ? 'rounded-[28px]' : ''}
             `}>
                 {/* Reply Preview */}
                 <AnimatePresence>
@@ -233,23 +234,31 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             initial={{ opacity: 0, height: 0, scale: 0.95 }}
                             animate={{ opacity: 1, height: "auto", scale: 1 }}
                             exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                            className="px-4 pt-2 pb-1"
+                            className="px-4 pt-3 pb-1"
                         >
-                            <div className="flex items-center justify-between bg-muted/30 rounded-xl p-2 border border-border/60">
-                                <div className="text-xs">
-                                    <p className="font-semibold text-sky-600">
+                            <div className="flex items-center justify-between bg-background/50 rounded-xl p-2.5 border border-border/60 shadow-sm">
+                                <div className="text-xs flex flex-col gap-0.5 pl-1.5 border-l-2 border-primary">
+                                    <p className="font-semibold text-primary">
                                         Replying to {typeof replyTo.sender === 'string' ? 'User' : replyTo.sender.name}
                                     </p>
                                     <p className="text-muted-foreground line-clamp-1">
-                                        {replyTo.type === 'image' ? '📷 Photo' :
-                                            replyTo.type === 'gif' ? '👾 GIF' :
-                                                replyTo.content}
+                                        {replyTo.type === 'image' ? (
+                                            <span className="flex items-center gap-1">
+                                                <ImageIcon className="w-3 h-3" /> Photo
+                                            </span>
+                                        ) : replyTo.type === 'gif' ? (
+                                            <span className="flex items-center gap-1">
+                                                <Sparkles className="w-3 h-3" /> GIF
+                                            </span>
+                                        ) : (
+                                            replyTo.content
+                                        )}
                                     </p>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={onCancelReply}
-                                    className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+                                    className="p-1.5 rounded-full hover:bg-background/80 hover:text-destructive transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -265,18 +274,18 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="px-4 pt-2"
+                            className="px-4 pt-3 pb-1"
                         >
-                            <div className="relative inline-block">
+                            <div className="relative inline-block group">
                                 <img
                                     src={imagePreview}
                                     alt="Preview"
-                                    className="h-24 rounded-lg object-cover border border-white/10"
+                                    className="h-32 rounded-xl object-cover border border-border/50 shadow-md"
                                 />
                                 <button
                                     type="button"
                                     onClick={clearImage}
-                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow-sm"
+                                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-md hover:scale-110 transition-transform"
                                 >
                                     <X className="w-3 h-3" />
                                 </button>
@@ -285,141 +294,144 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     )}
                 </AnimatePresence>
 
-                {/* Text Input Area */}
-                <div className="px-4 pt-2">
-                    <TextareaAutosize
-                        minRows={1}
-                        maxRows={8}
-                        placeholder={replyTo ? "Type a reply..." : "Type a message..."}
-                        className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-[15px] placeholder:text-muted-foreground/60 min-h-[24px]"
-                        value={message}
-                        onChange={(e) => {
-                            setMessage(e.target.value);
-                            handleTyping();
-                        }}
-                        onKeyDown={handleKeyDown}
-                        onPaste={(e) => {
-                            const items = e.clipboardData?.items;
-                            if (!items) return;
+                <div className="flex items-end gap-2 p-2">
+                    {/* Plus Button Menu */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-10 w-10 rounded-full bg-background/40 hover:bg-background hover:text-primary text-muted-foreground shrink-0 transition-all duration-200"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" sideOffset={10} className="w-52 bg-card/95 backdrop-blur-xl border-border/50 p-1.5 rounded-2xl shadow-xl">
+                            <DropdownMenuItem onClick={() => fileRef.current?.click()} className="rounded-xl py-2.5 cursor-pointer">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mr-3 text-blue-500">
+                                    <ImageIcon className="w-4 h-4" />
+                                </div>
+                                <span className="font-medium">Photos & Videos</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowCamera(true)} className="rounded-xl py-2.5 cursor-pointer">
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mr-3 text-purple-500">
+                                    <Camera className="w-4 h-4" />
+                                </div>
+                                <span className="font-medium">Camera</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowGifPicker(true)} className="rounded-xl py-2.5 cursor-pointer">
+                                <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center mr-3 text-pink-500">
+                                    <Sparkles className="w-4 h-4" />
+                                </div>
+                                <span className="font-medium">GIFs</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
 
-                            // Extract potential items
-                            const htmlItem = Array.from(items).find(item => item.type === "text/html");
-                            const imageItem = Array.from(items).find(item => item.type.indexOf("image") !== -1);
+                    {/* Text Input Area */}
+                    <div className="flex-1 min-h-[40px] py-2">
+                        <TextareaAutosize
+                            minRows={1}
+                            maxRows={6}
+                            placeholder={replyTo ? "Type a reply..." : "Message..."}
+                            className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-[15px] leading-relaxed placeholder:text-muted-foreground/60"
+                            value={message}
+                            onChange={(e) => {
+                                setMessage(e.target.value);
+                                handleTyping();
+                            }}
+                            onKeyDown={handleKeyDown}
+                            onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
 
-                            // If we have HTML content, try to find a GIF URL first (handles "Copy Image" from web)
-                            if (htmlItem) {
-                                // Get the file synchronously just in case we need it as fallback
-                                const fallbackFile = imageItem ? imageItem.getAsFile() : null;
+                                // Extract potential items
+                                const htmlItem = Array.from(items).find(item => item.type === "text/html");
+                                const imageItem = Array.from(items).find(item => item.type.indexOf("image") !== -1);
 
-                                htmlItem.getAsString((html) => {
-                                    const parser = new DOMParser();
-                                    const doc = parser.parseFromString(html, "text/html");
-                                    const img = doc.querySelector("img");
+                                // If we have HTML content, try to find a GIF URL first (handles "Copy Image" from web)
+                                if (htmlItem) {
+                                    // Get the file synchronously just in case we need it as fallback
+                                    const fallbackFile = imageItem ? imageItem.getAsFile() : null;
 
-                                    // Check if the image source is a GIF
-                                    if (img && img.src && (img.src.match(/\.gif(\?.*)?$/i) || img.src.includes("giphy.com"))) {
-                                        e.preventDefault();
-                                        onSendMessage({
-                                            content: message.trim() || "",
-                                            type: "gif",
-                                            imageUrl: img.src,
-                                            gifCategory: "kissing",
-                                            isViewOnce: false,
-                                            replyTo: replyTo?._id,
-                                        });
-                                        setMessage("");
-                                        if (onCancelReply) onCancelReply();
-                                        return;
-                                    } else {
-                                        // Fallback: It wasn't a GIF in HTML, process as file if available
-                                        if (fallbackFile) {
-                                            if (fallbackFile.size > 5 * 1024 * 1024) {
-                                                alert("File too large. Max 5MB.");
-                                                return;
+                                    htmlItem.getAsString((html) => {
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(html, "text/html");
+                                        const img = doc.querySelector("img");
+
+                                        // Check if the image source is a GIF
+                                        if (img && img.src && (img.src.match(/\.gif(\?.*)?$/i) || img.src.includes("giphy.com"))) {
+                                            e.preventDefault();
+                                            onSendMessage({
+                                                content: message.trim() || "",
+                                                type: "gif",
+                                                imageUrl: img.src,
+                                                gifCategory: "kissing",
+                                                isViewOnce: false,
+                                                replyTo: replyTo?._id,
+                                            });
+                                            setMessage("");
+                                            if (onCancelReply) onCancelReply();
+                                            return;
+                                        } else {
+                                            // Fallback: It wasn't a GIF in HTML, process as file if available
+                                            if (fallbackFile) {
+                                                if (fallbackFile.size > 5 * 1024 * 1024) {
+                                                    alert("File too large. Max 5MB.");
+                                                    return;
+                                                }
+
+                                                setImageFile(fallbackFile);
+                                                if (fallbackFile.type === "image/gif") {
+                                                    setGifCategory("kissing");
+                                                    setIsViewOnce(false);
+                                                }
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => setImagePreview(reader.result as string);
+                                                reader.readAsDataURL(fallbackFile);
                                             }
-
-                                            setImageFile(fallbackFile);
-                                            if (fallbackFile.type === "image/gif") {
-                                                setGifCategory("kissing");
-                                                setIsViewOnce(false);
-                                            }
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => setImagePreview(reader.result as string);
-                                            reader.readAsDataURL(fallbackFile);
                                         }
-                                    }
-                                });
-                                // We prevented default by potentially handling async, so we must stop immediate paste
-                                // Wait, if we return here without preventDefault, the text paste might happen?
-                                // Actually, we only want to prevent if we are handling it.
-                                // If we have HTML + Image, we probably want to intercept.
-                                if (imageItem) e.preventDefault();
-                                return;
-                            }
-
-                            // Standard File Paste (if no HTML or if logic above didn't match)
-                            // This handles direct file copy/screenshots which might not have HTML
-                            if (imageItem) {
-                                const file = imageItem.getAsFile();
-                                if (file) {
-                                    e.preventDefault();
-                                    if (file.size > 5 * 1024 * 1024) {
-                                        alert("File too large. Max 5MB.");
-                                        return;
-                                    }
-
-                                    setImageFile(file);
-                                    if (file.type === "image/gif") {
-                                        setGifCategory("kissing");
-                                        setIsViewOnce(false);
-                                    }
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => setImagePreview(reader.result as string);
-                                    reader.readAsDataURL(file);
+                                    });
+                                    // We prevented default by potentially handling async, so we must stop immediate paste
+                                    if (imageItem) e.preventDefault();
                                     return;
                                 }
-                            }
-                        }}
-                    />
-                </div>
 
-                {/* Bottom Actions Row */}
-                <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                    <div className="flex items-center gap-2">
-                        {/* Plus Button Menu */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-9 w-9 rounded-full bg-muted/30 hover:bg-muted text-foreground shrink-0 transition-colors"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48 bg-card/95 backdrop-blur-xl border-border/50">
-                                <DropdownMenuItem onClick={() => fileRef.current?.click()}>
-                                    <ImageIcon className="w-4 h-4 mr-2" />
-                                    <span>Upload Image</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShowCamera(true)}>
-                                    <Camera className="w-4 h-4 mr-2" />
-                                    <span>Camera</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShowGifPicker(true)}>
-                                    <Sparkles className="w-4 h-4 mr-2" />
-                                    <span>GIFs</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                // Standard File Paste (if no HTML or if logic above didn't match)
+                                // This handles direct file copy/screenshots which might not have HTML
+                                if (imageItem) {
+                                    const file = imageItem.getAsFile();
+                                    if (file) {
+                                        e.preventDefault();
+                                        if (file.size > 5 * 1024 * 1024) {
+                                            alert("File too large. Max 5MB.");
+                                            return;
+                                        }
 
+                                        setImageFile(file);
+                                        if (file.type === "image/gif") {
+                                            setGifCategory("kissing");
+                                            setIsViewOnce(false);
+                                        }
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => setImagePreview(reader.result as string);
+                                        reader.readAsDataURL(file);
+                                        return;
+                                    }
+                                }
+                            }}
+                        />
+                    </div>
+
+                    {/* Right Side Actions */}
+                    <div className="flex items-center gap-1.5 pb-0.5">
                         {/* Emoji Picker */}
                         <div className="relative">
                             <Button
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="h-9 w-9 rounded-full bg-muted/30 hover:bg-muted text-foreground shrink-0 transition-colors"
+                                className={`h-9 w-9 rounded-full transition-colors ${showEmojiPicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-background/60'}`}
                             >
                                 <Smile className="w-5 h-5" />
                             </Button>
@@ -429,7 +441,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                        className="absolute bottom-12 left-0 z-50 shadow-xl rounded-2xl overflow-hidden border border-border/50"
+                                        className="absolute bottom-14 right-0 z-50 shadow-2xl rounded-3xl overflow-hidden border border-border/50"
                                     >
                                         <Picker
                                             data={data}
@@ -449,68 +461,68 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
+                                    size="icon"
                                     variant="ghost"
-                                    className="h-9 px-3 rounded-full bg-muted/30 hover:bg-muted text-foreground text-xs font-medium gap-2 transition-colors"
+                                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-background/60 transition-colors"
                                 >
-                                    <LayoutGrid className="w-4 h-4" />
-                                    <span>Tools</span>
+                                    <LayoutGrid className="w-5 h-5" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-56 bg-card/95 backdrop-blur-xl border-border/50">
+                            <DropdownMenuContent align="end" sideOffset={10} className="w-60 bg-card/95 backdrop-blur-xl border-border/50 p-2 rounded-2xl shadow-xl">
                                 {imageFile && (
                                     <>
                                         <DropdownMenuItem
                                             onClick={() => setIsViewOnce(!isViewOnce)}
-                                            className="flex items-center justify-between"
+                                            className="flex items-center justify-between rounded-xl py-2 cursor-pointer"
                                         >
                                             <div className="flex items-center">
                                                 <ImageIcon className="w-4 h-4 mr-2" />
                                                 <span>View Once</span>
                                             </div>
-                                            {isViewOnce && <span className="text-xs text-emerald-500">On</span>}
+                                            {isViewOnce && <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">ON</span>}
                                         </DropdownMenuItem>
-                                        <div className="flex items-center px-2 py-1.5 text-sm outline-none">
+                                        <div className="flex items-center px-2 py-2 text-sm outline-none">
                                             <Zap className="w-4 h-4 mr-2" />
                                             <span>Self Destruct</span>
-                                            {selfDestruct > 0 && <span className="ml-auto text-xs text-emerald-500">{selfDestruct < 60 ? `${selfDestruct}s` : `${selfDestruct / 60}m`}</span>}
+                                            {selfDestruct > 0 && <span className="ml-auto text-xs font-mono text-emerald-500">{selfDestruct < 60 ? `${selfDestruct}s` : `${selfDestruct / 60}m`}</span>}
                                         </div>
-                                        <DropdownMenuSeparator />
+                                        <DropdownMenuSeparator className="my-1" />
                                     </>
                                 )}
 
-                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2 py-1.5">
-                                    Self Destruct Timer
+                                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-1.5">
+                                    Privacy Settings
                                 </DropdownMenuLabel>
                                 <DropdownMenuRadioGroup value={selfDestruct.toString()} onValueChange={(val) => setSelfDestruct(Number(val))}>
-                                    <DropdownMenuRadioItem value="0">Off</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="10">10 seconds</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="30">30 seconds</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="60">1 minute</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="300">5 minutes</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="1800">30 minutes</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="3600">1 hour</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="86400">24 hours</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="0">Off</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="10">10 seconds</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="30">30 seconds</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="60">1 minute</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="300">5 minutes</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="1800">30 minutes</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="3600">1 hour</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem className="rounded-lg cursor-pointer my-0.5" value="86400">24 hours</DropdownMenuRadioItem>
                                 </DropdownMenuRadioGroup>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                    </div>
 
-                    <div className="flex items-center gap-2">
                         {/* Send Button */}
-                        <Button
-                            size="icon"
-                            onClick={handleSend}
-                            disabled={(!message.trim() && !imageFile) || uploading}
-                            className={`
-                                h-10 w-10 rounded-full transition-all duration-150
-                                ${message.trim() || imageFile
-                                    ? 'bg-sky-500 text-white hover:bg-sky-500/90'
-                                    : 'bg-background/60 text-foreground hover:bg-background'
-                                }
-                            `}
-                        >
-                            <Send className="w-5 h-5 ml-0.5" />
-                        </Button>
+                        <div className="ml-1">
+                            <Button
+                                size="icon"
+                                onClick={handleSend}
+                                disabled={(!message.trim() && !imageFile) || uploading}
+                                className={`
+                                    h-10 w-10 rounded-full transition-all duration-300 shadow-sm
+                                    ${message.trim() || imageFile
+                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 hover:shadow-md'
+                                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                    }
+                                `}
+                            >
+                                <Send className={`w-5 h-5 ml-0.5 ${message.trim() || imageFile ? 'animate-in zoom-in spin-in-12 duration-300' : ''}`} />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

@@ -46,6 +46,12 @@ export interface IViewRecord {
   viewedAt: Date;
 }
 
+export interface IReaction {
+  user: string | IUser;
+  emoji: string;
+  createdAt: Date;
+}
+
 export interface IMessage {
   _id: string;
   chat: string | IChat;
@@ -59,6 +65,7 @@ export interface IMessage {
   viewOnceViewed: boolean;
   viewedBy: IViewRecord[];
   readBy: IReadReceipt[];
+  reactions: IReaction[];
   replyTo?: IMessage | null;
   selfDestructAt?: Date;
   createdAt: Date;
@@ -75,6 +82,7 @@ export interface ServerToClientEvents {
   "user:offline": (data: { userId: string; lastSeen: string }) => void;
   "chat:updated": (chat: IChat) => void;
   "message:viewed-once": (data: { messageId: string }) => void;
+  "message:reaction": (data: { messageId: string; chatId: string; reactions: IReaction[] }) => void;
 }
 
 export interface ClientToServerEvents {
