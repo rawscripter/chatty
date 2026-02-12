@@ -6,8 +6,8 @@ export async function GET() {
         const domain = process.env.METERED_DOMAIN;
 
         if (!apiKey || !domain) {
-            console.error("Missing Metered credentials");
-            return new NextResponse("Missing TURN credentials", { status: 500 });
+            console.warn("Missing Metered credentials, returning empty ICE servers");
+            return NextResponse.json([]);
         }
 
         const response = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`);

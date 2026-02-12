@@ -21,25 +21,49 @@ export function VideoCall() {
     const [isMinimized, setIsMinimized] = useState(false);
     const [isStealthMode, setIsStealthMode] = useState(false);
 
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    // Use callback refs to handle video elements dynamically
+    const setLocalVideoRef = useCallback((node: HTMLVideoElement | null) => {
+        if (node && stream) {
+            node.srcObject = stream;
+            node.play().catch(e => console.error("Error playing local video:", e));
+        }
+        localVideoRef.current = node;
+    }, [stream]);
+
+    const setRemoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
+        if (node && remoteStream) {
+            node.srcObject = remoteStream;
+            node.play().catch(e => console.error("Error playing remote video:", e));
+
+            // Log track status
+            const vTracks = remoteStream.getVideoTracks();
+            if (vTracks.length > 0) {
+                console.log(`[VideoCall] Remote Video Track mounted: enabled=${vTracks[0].enabled}, muted=${vTracks[0].muted}, readyState=${vTracks[0].readyState}`);
+            }
+        }
+        remoteVideoRef.current = node;
+    }, [remoteStream]);
+
+    // Keep refs for internal logic usage (like cleaning up srcObject if needed, though usually automatic)
+    const localVideoRef = useRef<HTMLVideoElement | null>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
     const connectionRef = useRef<SimplePeerInstance | null>(null);
     const isAcceptingRef = useRef(false);
     const isInitializingRef = useRef(false);
 
-    // Effect to attach local stream to video element
+    // Effect to attach local stream to video element - REDUNDANT with callback ref but kept for updates if stream changes while mounted
     useEffect(() => {
         if (localVideoRef.current && stream) {
             localVideoRef.current.srcObject = stream;
-            localVideoRef.current.play().catch(e => console.error("Error playing local video:", e));
+            localVideoRef.current.play().catch(e => console.error("Error playing local video (effect):", e));
         }
     }, [stream]);
 
-    // Effect to attach remote stream to video element
+    // Effect to attach remote stream to video element - REDUNDANT with callback ref but kept for updates if stream changes while mounted
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
+            remoteVideoRef.current.play().catch(e => console.error("Error playing remote video (effect):", e));
         }
     }, [remoteStream]);
 
@@ -600,7 +624,7 @@ export function VideoCall() {
                 }`}>
                 {/* Main Video (Remote) */}
                 <video
-                    ref={remoteVideoRef}
+                    ref={setRemoteVideoRef}
                     autoPlay
                     playsInline
                     className="w-full h-full object-cover"
@@ -615,7 +639,7 @@ export function VideoCall() {
                 {!isMinimized && (
                     <div className="absolute top-4 right-4 w-32 h-48 bg-gray-900 rounded-lg overflow-hidden border border-white/20 shadow-lg">
                         <video
-                            ref={localVideoRef}
+                            ref={setLocalVideoRef}
                             autoPlay
                             playsInline
                             muted
