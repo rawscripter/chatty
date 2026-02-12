@@ -17,7 +17,6 @@ export function VideoCall() {
 
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-    const [isMuted, setIsMuted] = useState(false);
     const [isVideoPaused, setIsVideoPaused] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [isStealthMode, setIsStealthMode] = useState(false);
@@ -51,7 +50,8 @@ export function VideoCall() {
                 endCall();
                 return null;
             }
-            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // Disable audio for now
+            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             setStream(currentStream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = currentStream;
@@ -59,7 +59,7 @@ export function VideoCall() {
             return currentStream;
         } catch (error) {
             console.error("Failed to access media devices:", error);
-            toast.error("Failed to access camera/microphone");
+            toast.error("Failed to access camera");
             endCall();
             return null;
         }
@@ -98,7 +98,7 @@ export function VideoCall() {
         setActiveCall({
             chatId: incomingCall.chatId,
             isVideoEnabled: true,
-            isAudioEnabled: true
+            isAudioEnabled: false // Audio disabled
         });
         setIncomingCall(null);
 
@@ -146,11 +146,37 @@ export function VideoCall() {
     useEffect(() => {
         if (!pusher || !session?.user?.id) return;
 
-        // Determine the channel to listen to.
+        const userId = session.user.id;
+        const privateUserChannelName = `private-user-${userId}`;
+        const privateUserChannel = pusher.subscribe(privateUserChannelName);
+
+        // Listen for incoming calls on private user channel
+        privateUserChannel.bind("client-incoming-call", (data: { userId: string; signal: SignalData; userAvatar?: string; userName?: string; chatId: string }) => {
+            // Ignore our own signals (shouldn't happen on private channel usually, but safe guard)
+            if (data.userId === session.user?.id) return;
+
+            if (autoAnswer) {
+                setIncomingCall({
+                    chatId: data.chatId,
+                    callerId: data.userId,
+                    callerName: data.userName || "Remote Access",
+                    signal: data.signal,
+                    callerAvatar: data.userAvatar || ""
+                });
+            } else {
+                setIncomingCall({
+                    chatId: data.chatId,
+                    callerId: data.userId,
+                    callerName: data.userName || "Incoming Call",
+                    signal: data.signal,
+                    callerAvatar: data.userAvatar || ""
+                });
+            }
+        });
+
+        // Determine the chat channel to listen to for ongoing call signaling (Answer, Candidates)
         // If we have an activeCall, we listen to that chat ID.
-        // If we don't, we listen to the activeChat's channel (if open).
-        // This allows us to receive the initial "Offer" signal.
-        const chatId = activeCall?.chatId || activeChat?._id;
+        const chatId = activeCall?.chatId;
 
         if (chatId) {
             const channel = pusher.subscribe(`chat-${chatId}`);
@@ -159,31 +185,9 @@ export function VideoCall() {
                 // Ignore our own signals
                 if (data.userId === session.user?.id) return;
 
-                if (data.isCallStart) {
-                    // Start of a new call (Offer)
-                    if (autoAnswer) {
-                        setIncomingCall({
-                            chatId: chatId,
-                            callerId: data.userId,
-                            callerName: "Remote Access",
-                            signal: data.signal,
-                            callerAvatar: ""
-                        });
-                    } else {
-                        setIncomingCall({
-                            chatId: chatId,
-                            callerId: data.userId,
-                            callerName: "Incoming Call",
-                            signal: data.signal,
-                            callerAvatar: ""
-                        });
-                    }
-                } else {
-                    // Ongoing call signal (Answer, ICE Candidate)
-                    // Only process this if we are in an active call with this person
-                    // OR if we are in the process of connecting (which handleSignal checks internally via connectionRef)
-                    handleSignal({ signal: data.signal });
-                }
+                // Only process this if we are in an active call with this person
+                // OR if we are in the process of connecting (which handleSignal checks internally via connectionRef)
+                handleSignal({ signal: data.signal });
             });
 
             channel.bind("client-end-call", (data: { userId: string }) => {
@@ -195,9 +199,19 @@ export function VideoCall() {
             return () => {
                 channel.unbind("client-signal");
                 channel.unbind("client-end-call");
+                // Do not unsubscribe from chat channel here as it might be used by other components?
+                // Actually VideoCall is global, so maybe we should unsubscribe?
+                // But ChatLayout might also subscribe?
+                // For now, let's leave it.
+                pusher.unsubscribe(`chat-${chatId}`);
             };
         }
-    }, [pusher, activeCall?.chatId, activeChat?._id, session?.user?.id, handleSignal, handleRemoteEndCall, autoAnswer, setIncomingCall]);
+
+        return () => {
+            privateUserChannel.unbind("client-incoming-call");
+            pusher.unsubscribe(privateUserChannelName);
+        };
+    }, [pusher, activeCall?.chatId, session?.user?.id, handleSignal, handleRemoteEndCall, autoAnswer, setIncomingCall]);
 
     // Auto-Answer Effect
     useEffect(() => {
@@ -219,7 +233,31 @@ export function VideoCall() {
     useEffect(() => {
         // This effect should only run if we are the initiator, not if we are accepting an incoming call.
         // `incomingCall` being null and `!isAcceptingRef.current` helps distinguish.
+        // Also ensure we have an activeChat with participants to find the recipient.
         if (activeCall && !connectionRef.current && !incomingCall && !isAcceptingRef.current) {
+
+            // Find recipient ID
+            // Assuming 1-on-1 for now. 
+            // If activeChat is available, use it. If not, we might have an issue if we reloaded the page in a call?
+            // But we can't reload page and keep activeCall state easily without persistence.
+            // For now rely on activeChat.
+            let recipientId: string | undefined;
+
+            if (activeChat) {
+                const currentUserId = session?.user?.id;
+                // Participants can be string[] or IUser[]
+                const otherParticipant = activeChat.participants.find((p: any) => {
+                    const pId = typeof p === 'string' ? p : p._id;
+                    return pId !== currentUserId;
+                });
+                recipientId = typeof otherParticipant === 'string' ? otherParticipant : otherParticipant?._id;
+            }
+
+            if (!recipientId) {
+                console.error("Could not determine recipient ID for call");
+                return;
+            }
+
             // I am initiating the call
             initStream().then((myStream) => {
                 if (!myStream) {
@@ -238,19 +276,38 @@ export function VideoCall() {
                     const userId = session?.user?.id;
                     if (!userId) return;
 
-                    fetch("/api/pusher/trigger", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            channelName: `chat-${activeCall.chatId}`,
-                            eventName: "client-signal",
-                            data: {
-                                userId: userId,
-                                signal: signal,
-                                isCallStart: true // flag to indicate this is an offer
-                            }
-                        })
-                    });
+                    // If it's an offer (type 'offer'), send to recipient's PRIVATE channel
+                    if (signal.type === 'offer') {
+                        fetch("/api/pusher/trigger", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                channelName: `private-user-${recipientId}`, // Send to recipient's private channel
+                                eventName: "client-incoming-call",
+                                data: {
+                                    userId: userId,
+                                    signal: signal,
+                                    chatId: activeCall.chatId,
+                                    userAvatar: session.user?.image, // Assuming next-auth session has image/name
+                                    userName: session.user?.name
+                                }
+                            })
+                        });
+                    } else {
+                        // For candidates or other signals, send to CHAT channel (recipient should be there after accepting)
+                        fetch("/api/pusher/trigger", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                channelName: `chat-${activeCall.chatId}`,
+                                eventName: "client-signal",
+                                data: {
+                                    userId: userId,
+                                    signal: signal
+                                }
+                            })
+                        });
+                    }
                 });
 
                 peer.on("stream", (currentRemoteStream) => {
@@ -270,7 +327,7 @@ export function VideoCall() {
                 connectionRef.current = peer;
             });
         }
-    }, [activeCall, incomingCall, session?.user?.id, cleanup, initStream]);
+    }, [activeCall, incomingCall, session?.user?.id, cleanup, initStream, activeChat]);
 
 
     const rejectIncomingCall = () => {
@@ -286,14 +343,6 @@ export function VideoCall() {
                 })
             });
             setIncomingCall(null);
-        }
-    };
-
-
-    const toggleMute = () => {
-        if (stream) {
-            stream.getAudioTracks().forEach(track => track.enabled = !track.enabled);
-            setIsMuted(!isMuted);
         }
     };
 
@@ -407,15 +456,6 @@ export function VideoCall() {
                 {/* Controls Overlay */}
                 <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent transition-opacity ${isMinimized ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
                     <div className="flex items-center justify-center gap-4">
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="rounded-full h-12 w-12"
-                            onClick={toggleMute}
-                        >
-                            {isMuted ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
-                        </Button>
-
                         <Button
                             variant="destructive"
                             size="icon"
