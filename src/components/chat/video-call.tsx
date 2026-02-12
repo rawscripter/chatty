@@ -98,7 +98,8 @@ export function VideoCall() {
         setActiveCall({
             chatId: incomingCall.chatId,
             isVideoEnabled: true,
-            isAudioEnabled: false // Audio disabled
+            isAudioEnabled: false, // Audio disabled
+            remoteUserId: incomingCall.callerId
         });
         setIncomingCall(null);
 
@@ -109,11 +110,12 @@ export function VideoCall() {
         });
 
         peer.on("signal", (signal) => {
+            console.log("[VideoCall] Sending Signal (Answer/Candidate) to private channel:", `private-user-${incomingCall.callerId}`);
             fetch("/api/pusher/trigger", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    channelName: `chat-${incomingCall.chatId}`,
+                    channelName: `private-user-${incomingCall.callerId}`,
                     eventName: "client-signal",
                     data: {
                         userId: userId,
@@ -124,10 +126,15 @@ export function VideoCall() {
         });
 
         peer.on("stream", (currentRemoteStream) => {
+            console.log("[VideoCall] Received remote stream (Callee)");
             setRemoteStream(currentRemoteStream);
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = currentRemoteStream;
             }
+        });
+
+        peer.on("connect", () => {
+            console.log("[VideoCall] Peer Connected (Callee)!");
         });
 
         peer.on("close", cleanup);
@@ -148,10 +155,12 @@ export function VideoCall() {
 
         const userId = session.user.id;
         const privateUserChannelName = `private-user-${userId}`;
+        console.log(`[VideoCall] Subscribing to private channel: ${privateUserChannelName}`);
         const privateUserChannel = pusher.subscribe(privateUserChannelName);
 
-        // Listen for incoming calls on private user channel
+        // Listen for incoming calls (Offers) on private user channel
         privateUserChannel.bind("client-incoming-call", (data: { userId: string; signal: SignalData; userAvatar?: string; userName?: string; chatId: string }) => {
+            console.log("[VideoCall] Received incoming call on private channel:", data);
             // Ignore our own signals (shouldn't happen on private channel usually, but safe guard)
             if (data.userId === session.user?.id) return;
 
@@ -174,44 +183,34 @@ export function VideoCall() {
             }
         });
 
-        // Determine the chat channel to listen to for ongoing call signaling (Answer, Candidates)
-        // If we have an activeCall, we listen to that chat ID.
-        const chatId = activeCall?.chatId;
+        // Listen for ongoing call signals (Answer, ICE Candidates) on private user channel
+        privateUserChannel.bind("client-signal", (data: { userId: string; signal: SignalData }) => {
+            // Ignore our own signals
+            if (data.userId === session.user?.id) return;
 
-        if (chatId) {
-            const channel = pusher.subscribe(`chat-${chatId}`);
+            console.log("[VideoCall] Received signal on private channel:", data.signal.type);
 
-            channel.bind("client-signal", (data: { userId: string; signal: SignalData; isCallStart?: boolean }) => {
-                // Ignore our own signals
-                if (data.userId === session.user?.id) return;
+            // Only process this if we are in an active call with this person
+            // OR if we are in the process of connecting
+            handleSignal({ signal: data.signal });
+        });
 
-                // Only process this if we are in an active call with this person
-                // OR if we are in the process of connecting (which handleSignal checks internally via connectionRef)
-                handleSignal({ signal: data.signal });
-            });
-
-            channel.bind("client-end-call", (data: { userId: string }) => {
-                if (data.userId !== session.user?.id) {
-                    handleRemoteEndCall();
-                }
-            });
-
-            return () => {
-                channel.unbind("client-signal");
-                channel.unbind("client-end-call");
-                // Do not unsubscribe from chat channel here as it might be used by other components?
-                // Actually VideoCall is global, so maybe we should unsubscribe?
-                // But ChatLayout might also subscribe?
-                // For now, let's leave it.
-                pusher.unsubscribe(`chat-${chatId}`);
-            };
-        }
+        // Listen for end call signals
+        privateUserChannel.bind("client-end-call", (data: { userId: string }) => {
+            if (data.userId !== session.user?.id) {
+                console.log("[VideoCall] Received end call signal");
+                handleRemoteEndCall();
+            }
+        });
 
         return () => {
+            console.log(`[VideoCall] Unsubscribing from private channel: ${privateUserChannelName}`);
             privateUserChannel.unbind("client-incoming-call");
+            privateUserChannel.unbind("client-signal");
+            privateUserChannel.unbind("client-end-call");
             pusher.unsubscribe(privateUserChannelName);
         };
-    }, [pusher, activeCall?.chatId, session?.user?.id, handleSignal, handleRemoteEndCall, autoAnswer, setIncomingCall]);
+    }, [pusher, session?.user?.id, handleSignal, handleRemoteEndCall, autoAnswer, setIncomingCall]);
 
     // Auto-Answer Effect
     useEffect(() => {
@@ -236,27 +235,33 @@ export function VideoCall() {
         // Also ensure we have an activeChat with participants to find the recipient.
         if (activeCall && !connectionRef.current && !incomingCall && !isAcceptingRef.current) {
 
-            // Find recipient ID
-            // Assuming 1-on-1 for now. 
-            // If activeChat is available, use it. If not, we might have an issue if we reloaded the page in a call?
-            // But we can't reload page and keep activeCall state easily without persistence.
-            // For now rely on activeChat.
-            let recipientId: string | undefined;
+            // Find recipient ID - We need to know who we are calling to send signals to their private channel
+            let recipientId = activeCall.remoteUserId;
 
-            if (activeChat) {
+            if (!recipientId && activeChat) {
                 const currentUserId = session?.user?.id;
                 // Participants can be string[] or IUser[]
                 const otherParticipant = activeChat.participants.find((p: any) => {
                     const pId = typeof p === 'string' ? p : p._id;
                     return pId !== currentUserId;
                 });
-                recipientId = typeof otherParticipant === 'string' ? otherParticipant : otherParticipant?._id;
+                const participantId = typeof otherParticipant === 'string' ? otherParticipant : otherParticipant?._id;
+                if (participantId) recipientId = participantId;
             }
 
             if (!recipientId) {
-                console.error("Could not determine recipient ID for call");
+                console.error("[VideoCall] Could not determine recipient ID for call");
                 return;
             }
+
+            // Update activeCall with remoteUserId if it was missing (e.g. initial call start)
+            if (!activeCall.remoteUserId) {
+                // We can't easily update state inside effect without triggering re-renders, 
+                // but we can pass it to the peer logic.
+                // Ideally setActiveCall should have bee called with it.
+            }
+
+            console.log("[VideoCall] Initiating call to:", recipientId);
 
             // I am initiating the call
             initStream().then((myStream) => {
@@ -276,8 +281,11 @@ export function VideoCall() {
                     const userId = session?.user?.id;
                     if (!userId) return;
 
-                    // If it's an offer (type 'offer'), send to recipient's PRIVATE channel
+                    console.log("[VideoCall] Generated signal (Caller):", signal.type);
+
+                    // If it's an offer (type 'offer'), send to recipient's PRIVATE channel as 'client-incoming-call'
                     if (signal.type === 'offer') {
+                        console.log("[VideoCall] Sending Offer to private channel:", `private-user-${recipientId}`);
                         fetch("/api/pusher/trigger", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -294,12 +302,13 @@ export function VideoCall() {
                             })
                         });
                     } else {
-                        // For candidates or other signals, send to CHAT channel (recipient should be there after accepting)
+                        // For candidates or other signals, send to RECIPIENT'S PRIVATE channel as 'client-signal'
+                        console.log("[VideoCall] Sending Signal to private channel:", `private-user-${recipientId}`);
                         fetch("/api/pusher/trigger", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                                channelName: `chat-${activeCall.chatId}`,
+                                channelName: `private-user-${recipientId}`,
                                 eventName: "client-signal",
                                 data: {
                                     userId: userId,
@@ -311,10 +320,15 @@ export function VideoCall() {
                 });
 
                 peer.on("stream", (currentRemoteStream) => {
+                    console.log("[VideoCall] Received remote stream (Caller)");
                     setRemoteStream(currentRemoteStream);
                     if (remoteVideoRef.current) {
                         remoteVideoRef.current.srcObject = currentRemoteStream;
                     }
+                });
+
+                peer.on("connect", () => {
+                    console.log("[VideoCall] Peer Connected (Caller)!");
                 });
 
                 peer.on("close", cleanup);
@@ -333,11 +347,12 @@ export function VideoCall() {
     const rejectIncomingCall = () => {
         if (incomingCall) {
             // Optionally notify caller of rejection
+            console.log("[VideoCall] Rejecting call, notifying:", incomingCall.callerId);
             fetch("/api/pusher/trigger", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    channelName: `chat-${incomingCall.chatId}`,
+                    channelName: `private-user-${incomingCall.callerId}`,
                     eventName: "client-end-call",
                     data: { userId: session?.user?.id }
                 })
@@ -354,12 +369,13 @@ export function VideoCall() {
     };
 
     const handleEndCall = () => {
-        if (activeCall) {
+        if (activeCall && activeCall.remoteUserId) {
+            console.log("[VideoCall] Ending call, notifying:", activeCall.remoteUserId);
             fetch("/api/pusher/trigger", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    channelName: `chat-${activeCall.chatId}`,
+                    channelName: `private-user-${activeCall.remoteUserId}`,
                     eventName: "client-end-call",
                     data: { userId: session?.user?.id }
                 })

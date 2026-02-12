@@ -137,11 +137,12 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
     const { setActiveCall } = useChatStore();
 
     const handleVideoCall = () => {
-        if (!isConnected) return;
+        if (!isConnected || !otherParticipant) return;
         setActiveCall({
             chatId: chat._id,
             isVideoEnabled: true,
-            isAudioEnabled: true
+            isAudioEnabled: true, // This will be ignored by VideoCall component for now as it forces false
+            remoteUserId: otherParticipant._id
         });
     };
 

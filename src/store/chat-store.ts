@@ -21,6 +21,7 @@ interface ActiveCall {
     isVideoEnabled: boolean;
     isAudioEnabled: boolean;
     remoteStream?: MediaStream;
+    remoteUserId: string;
 }
 
 interface ChatStore {
