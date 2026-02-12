@@ -30,6 +30,7 @@ export function VideoCall() {
     useEffect(() => {
         if (localVideoRef.current && stream) {
             localVideoRef.current.srcObject = stream;
+            localVideoRef.current.play().catch(e => console.error("Error playing local video:", e));
         }
     }, [stream]);
 
@@ -37,6 +38,7 @@ export function VideoCall() {
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
+            remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
         }
     }, [remoteStream]);
 
@@ -59,7 +61,7 @@ export function VideoCall() {
     }, [stream, endCall]);
 
     // Initialize local stream
-    const initStream = async () => {
+    const initStream = useCallback(async () => {
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 toast.error("Camera access not supported (requires HTTPS)");
@@ -97,9 +99,8 @@ export function VideoCall() {
             }
 
             endCall();
-            return null;
         }
-    };
+    }, [endCall]);
 
     // Refs to track state without triggering re-renders in effects/callbacks
     const activeCallRef = useRef(activeCall);
@@ -230,6 +231,9 @@ export function VideoCall() {
 
         peer.signal(incomingCall.signal);
 
+        // Assign connection ref BEFORE replaying queued signals
+        connectionRef.current = peer;
+
         // Replay queued signals (ICE candidates)
         if (queuedSignals.current.length > 0) {
             console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals`);
@@ -237,7 +241,6 @@ export function VideoCall() {
             queuedSignals.current = [];
         }
 
-        connectionRef.current = peer;
         isAcceptingRef.current = false;
     }, [incomingCall, session?.user?.id, initStream, setActiveCall, setIncomingCall, cleanup, autoAnswer]);
 
@@ -464,14 +467,17 @@ export function VideoCall() {
                     cleanup();
                 });
 
+                // Assign connection ref BEFORE replaying signals
+                // This ensures that any NEW signals coming in during replay (or immediately after)
+                // are handled by handleSignal directly, instead of being queued.
+                connectionRef.current = peer;
+
                 // Replay queued signals (ICE candidates/Answer) for Caller
                 if (queuedSignals.current.length > 0) {
                     console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
                     queuedSignals.current.forEach(s => peer.signal(s));
                     queuedSignals.current = [];
                 }
-
-                connectionRef.current = peer;
             });
         }
     }, [activeCall, incomingCall, session?.user?.id, cleanup, initStream, activeChat]);
