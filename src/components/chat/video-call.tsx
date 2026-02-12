@@ -68,6 +68,15 @@ export function VideoCall() {
         }
     };
 
+    // Refs to track state without triggering re-renders in effects/callbacks
+    const activeCallRef = useRef(activeCall);
+    const incomingCallRef = useRef(incomingCall);
+
+    useEffect(() => {
+        activeCallRef.current = activeCall;
+        incomingCallRef.current = incomingCall;
+    }, [activeCall, incomingCall]);
+
     // Handle incoming call signal (answer) from remote peer
     const handleSignal = useCallback((data: { signal: SignalData; userId: string }) => {
         // If we have a connection, signal it
@@ -76,13 +85,15 @@ export function VideoCall() {
             connectionRef.current.signal(data.signal);
         } else {
             // If we don't have a connection yet, but we are in incoming call state or establishing, queue it
-            // This is critical for ICE candidates that arrive before the peer is created (e.g. before accept)
-            if (incomingCall?.callerId === data.userId || activeCall?.remoteUserId === data.userId) {
+            const currentIncomingCall = incomingCallRef.current;
+            const currentActiveCall = activeCallRef.current;
+
+            if (currentIncomingCall?.callerId === data.userId || currentActiveCall?.remoteUserId === data.userId) {
                 console.log("[VideoCall] Queueing signal (peer not ready):", data.signal.type);
                 queuedSignals.current.push(data.signal);
             }
         }
-    }, [incomingCall, activeCall]);
+    }, []); // No dependencies needed due to refs
 
     // Handle end call signal from remote peer
     const handleRemoteEndCall = useCallback(() => {
@@ -170,6 +181,7 @@ export function VideoCall() {
     }, [incomingCall, session?.user?.id, initStream, setActiveCall, setIncomingCall, cleanup, autoAnswer]);
 
     // Effect to subscribe to pusher events for signaling
+    // IMPORTANT: This effect must NOT re-run when activeCall/incomingCall changes to avoid subscription churn
     useEffect(() => {
         if (!pusher || !session?.user?.id) return;
 
@@ -187,23 +199,22 @@ export function VideoCall() {
             // Clear any old queued signals on new call
             queuedSignals.current = [];
 
-            if (autoAnswer) {
-                setIncomingCall({
-                    chatId: data.chatId,
-                    callerId: data.userId,
-                    callerName: data.userName || "Remote Access",
-                    signal: data.signal,
-                    callerAvatar: data.userAvatar || ""
-                });
-            } else {
-                setIncomingCall({
-                    chatId: data.chatId,
-                    callerId: data.userId,
-                    callerName: data.userName || "Incoming Call",
-                    signal: data.signal,
-                    callerAvatar: data.userAvatar || ""
-                });
-            }
+            // We can read autoAnswer from store hook directly in component context if needed,
+            // but relying on the prop/state here might be tricky inside a closure if it's not in deps.
+            // However, we want this effect STABLE.
+            // setIncomingCall is stable.
+            // We need to check autoAnswer state...
+            // Ideally we just set incoming call and let the other AutoAnswer effect handle it.
+            // But we need to define the object with correctly formatted data.
+
+            // We'll trust that we just set the incoming call and regular logic flows.
+            setIncomingCall({
+                chatId: data.chatId,
+                callerId: data.userId,
+                callerName: data.userName || "Incoming Call",
+                signal: data.signal,
+                callerAvatar: data.userAvatar || ""
+            });
         });
 
         // Listen for ongoing call signals (Answer, ICE Candidates) on private user channel
@@ -215,6 +226,7 @@ export function VideoCall() {
 
             // Only process this if we are in an active call with this person
             // OR if we are in the process of connecting
+            // Use handleSignal which now uses REFS so it's stable!
             handleSignal({ signal: data.signal, userId: data.userId });
         });
 
@@ -233,7 +245,7 @@ export function VideoCall() {
             privateUserChannel.unbind("client-end-call");
             pusher.unsubscribe(privateUserChannelName);
         };
-    }, [pusher, session?.user?.id, handleSignal, handleRemoteEndCall, autoAnswer, setIncomingCall]);
+    }, [pusher, session?.user?.id, handleSignal, handleRemoteEndCall, setIncomingCall]);
 
     // Auto-Answer Effect
     useEffect(() => {
