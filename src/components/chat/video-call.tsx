@@ -25,6 +25,7 @@ export function VideoCall() {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const connectionRef = useRef<SimplePeerInstance | null>(null);
     const isAcceptingRef = useRef(false);
+    const isInitializingRef = useRef(false);
 
     // Effect to attach local stream to video element
     useEffect(() => {
@@ -58,10 +59,20 @@ export function VideoCall() {
         endCall();
         setIsStealthMode(false);
         queuedSignals.current = [];
+        isInitializingRef.current = false;
+        isAcceptingRef.current = false;
     }, [stream, endCall]);
+
+    // Track if component is mounted to prevent state updates after unmount
+    const isMounted = useRef(true);
+    useEffect(() => {
+        isMounted.current = true;
+        return () => { isMounted.current = false; };
+    }, []);
 
     // Initialize local stream
     const initStream = useCallback(async () => {
+        if (!isMounted.current) return null;
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 toast.error("Camera access not supported (requires HTTPS)");
@@ -332,7 +343,7 @@ export function VideoCall() {
         // This effect should only run if we are the initiator, not if we are accepting an incoming call.
         // `incomingCall` being null and `!isAcceptingRef.current` helps distinguish.
         // Also ensure we have an activeChat with participants to find the recipient.
-        if (activeCall && !connectionRef.current && !incomingCall && !isAcceptingRef.current) {
+        if (activeCall && !connectionRef.current && !incomingCall && !isAcceptingRef.current && !isInitializingRef.current) {
 
             // Find recipient ID - We need to know who we are calling to send signals to their private channel
             let recipientId = activeCall.remoteUserId;
@@ -353,18 +364,15 @@ export function VideoCall() {
                 return;
             }
 
-            // Update activeCall with remoteUserId if it was missing (e.g. initial call start)
-            if (!activeCall.remoteUserId) {
-                // We can't easily update state inside effect without triggering re-renders, 
-                // but we can pass it to the peer logic.
-                // Ideally setActiveCall should have bee called with it.
-            }
-
             console.log("[VideoCall] Initiating call to:", recipientId);
+            isInitializingRef.current = true;
 
             // I am initiating the call
             initStream().then(async (myStream) => {
+                if (!isMounted.current) return;
+
                 if (!myStream) {
+                    isInitializingRef.current = false;
                     cleanup(); // Ensure cleanup if stream fails
                     return;
                 }
@@ -442,11 +450,21 @@ export function VideoCall() {
                     setRemoteStream(currentRemoteStream);
                     if (remoteVideoRef.current) {
                         remoteVideoRef.current.srcObject = currentRemoteStream;
+                        remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
+                    }
+
+                    // Log tracks for debugging black screen
+                    const vTracks = currentRemoteStream.getVideoTracks();
+                    const aTracks = currentRemoteStream.getAudioTracks();
+                    console.log(`[VideoCall] Remote Stream Tracks: Video=${vTracks.length}, Audio=${aTracks.length}`);
+                    if (vTracks.length > 0) {
+                        console.log(`[VideoCall] Remote Video Track: enabled=${vTracks[0].enabled}, muted=${vTracks[0].muted}, readyState=${vTracks[0].readyState}`);
                     }
                 });
 
                 peer.on("connect", () => {
                     console.log("[VideoCall] Peer Connected (Caller)!");
+                    toast.success("Call connected!");
                 });
 
                 peer.on("close", cleanup);
@@ -478,6 +496,9 @@ export function VideoCall() {
                     queuedSignals.current.forEach(s => peer.signal(s));
                     queuedSignals.current = [];
                 }
+
+                // Initialization complete
+                isInitializingRef.current = false;
             });
         }
     }, [activeCall, incomingCall, session?.user?.id, cleanup, initStream, activeChat]);
