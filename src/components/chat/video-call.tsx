@@ -26,6 +26,8 @@ export function VideoCall() {
     const connectionRef = useRef<SimplePeerInstance | null>(null);
     const isAcceptingRef = useRef(false);
 
+    const queuedSignals = useRef<SignalData[]>([]);
+
     // cleanup on unmount or end call
     const cleanup = useCallback(() => {
         if (connectionRef.current) {
@@ -39,6 +41,7 @@ export function VideoCall() {
         setRemoteStream(null);
         endCall();
         setIsStealthMode(false);
+        queuedSignals.current = [];
     }, [stream, endCall]);
 
     // Initialize local stream
@@ -66,11 +69,20 @@ export function VideoCall() {
     };
 
     // Handle incoming call signal (answer) from remote peer
-    const handleSignal = useCallback((data: { signal: SignalData }) => {
+    const handleSignal = useCallback((data: { signal: SignalData; userId: string }) => {
+        // If we have a connection, signal it
         if (connectionRef.current && !connectionRef.current.destroyed) {
+            console.log("[VideoCall] Signaling peer with received data:", data.signal.type);
             connectionRef.current.signal(data.signal);
+        } else {
+            // If we don't have a connection yet, but we are in incoming call state or establishing, queue it
+            // This is critical for ICE candidates that arrive before the peer is created (e.g. before accept)
+            if (incomingCall?.callerId === data.userId || activeCall?.remoteUserId === data.userId) {
+                console.log("[VideoCall] Queueing signal (peer not ready):", data.signal.type);
+                queuedSignals.current.push(data.signal);
+            }
         }
-    }, []);
+    }, [incomingCall, activeCall]);
 
     // Handle end call signal from remote peer
     const handleRemoteEndCall = useCallback(() => {
@@ -105,7 +117,7 @@ export function VideoCall() {
 
         const peer = new SimplePeer({
             initiator: false,
-            trickle: false,
+            trickle: true, // Enable trickle ICE
             stream: myStream,
         });
 
@@ -145,6 +157,14 @@ export function VideoCall() {
         });
 
         peer.signal(incomingCall.signal);
+
+        // Replay queued signals (ICE candidates)
+        if (queuedSignals.current.length > 0) {
+            console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals`);
+            queuedSignals.current.forEach(s => peer.signal(s));
+            queuedSignals.current = [];
+        }
+
         connectionRef.current = peer;
         isAcceptingRef.current = false;
     }, [incomingCall, session?.user?.id, initStream, setActiveCall, setIncomingCall, cleanup, autoAnswer]);
@@ -163,6 +183,9 @@ export function VideoCall() {
             console.log("[VideoCall] Received incoming call on private channel:", data);
             // Ignore our own signals (shouldn't happen on private channel usually, but safe guard)
             if (data.userId === session.user?.id) return;
+
+            // Clear any old queued signals on new call
+            queuedSignals.current = [];
 
             if (autoAnswer) {
                 setIncomingCall({
@@ -192,7 +215,7 @@ export function VideoCall() {
 
             // Only process this if we are in an active call with this person
             // OR if we are in the process of connecting
-            handleSignal({ signal: data.signal });
+            handleSignal({ signal: data.signal, userId: data.userId });
         });
 
         // Listen for end call signals
@@ -272,7 +295,7 @@ export function VideoCall() {
 
                 const peer = new SimplePeer({
                     initiator: true,
-                    trickle: false,
+                    trickle: true,
                     stream: myStream,
                 });
 
