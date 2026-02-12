@@ -51,21 +51,7 @@ export function VideoCall() {
     const isAcceptingRef = useRef(false);
     const isInitializingRef = useRef(false);
 
-    // Effect to attach local stream to video element - REDUNDANT with callback ref but kept for updates if stream changes while mounted
-    useEffect(() => {
-        if (localVideoRef.current && stream) {
-            localVideoRef.current.srcObject = stream;
-            localVideoRef.current.play().catch(e => console.error("Error playing local video (effect):", e));
-        }
-    }, [stream]);
 
-    // Effect to attach remote stream to video element - REDUNDANT with callback ref but kept for updates if stream changes while mounted
-    useEffect(() => {
-        if (remoteVideoRef.current && remoteStream) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(e => console.error("Error playing remote video (effect):", e));
-        }
-    }, [remoteStream]);
 
     const queuedSignals = useRef<SignalData[]>([]);
 
@@ -76,7 +62,9 @@ export function VideoCall() {
             connectionRef.current = null;
         }
         if (stream) {
-            stream.getTracks().forEach(track => track.stop());
+            stream.getTracks().forEach(track => {
+                track.stop();
+            });
             setStream(null);
         }
         setRemoteStream(null);
@@ -272,7 +260,9 @@ export function VideoCall() {
         // Replay queued signals (ICE candidates)
         if (queuedSignals.current.length > 0) {
             console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals`);
-            queuedSignals.current.forEach(s => peer.signal(s));
+            queuedSignals.current.forEach(s => {
+                peer.signal(s);
+            });
             queuedSignals.current = [];
         }
 
@@ -472,10 +462,6 @@ export function VideoCall() {
                 peer.on("stream", (currentRemoteStream) => {
                     console.log("[VideoCall] Received remote stream (Caller)");
                     setRemoteStream(currentRemoteStream);
-                    if (remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = currentRemoteStream;
-                        remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
-                    }
 
                     // Log tracks for debugging black screen
                     const vTracks = currentRemoteStream.getVideoTracks();
@@ -515,17 +501,19 @@ export function VideoCall() {
                 connectionRef.current = peer;
 
                 // Replay queued signals (ICE candidates/Answer) for Caller
-                if (queuedSignals.current.length > 0) {
-                    console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
-                    queuedSignals.current.forEach(s => peer.signal(s));
-                    queuedSignals.current = [];
-                }
+        if (queuedSignals.current.length > 0) {
+            console.log(`[VideoCall] Replaying ${queuedSignals.current.length} queued signals (Caller)`);
+            queuedSignals.current.forEach(s => {
+                peer.signal(s);
+            });
+            queuedSignals.current = [];
+        }
 
                 // Initialization complete
                 isInitializingRef.current = false;
             });
         }
-    }, [activeCall, incomingCall, session?.user?.id, cleanup, initStream, activeChat]);
+    }, [activeCall, incomingCall, session?.user?.id, session?.user?.image, session?.user?.name, cleanup, initStream, activeChat]);
 
 
     const rejectIncomingCall = () => {
@@ -547,7 +535,9 @@ export function VideoCall() {
 
     const toggleVideo = () => {
         if (stream) {
-            stream.getVideoTracks().forEach(track => track.enabled = !track.enabled);
+            stream.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+            });
             setIsVideoPaused(!isVideoPaused);
         }
     };
@@ -628,7 +618,9 @@ export function VideoCall() {
                     autoPlay
                     playsInline
                     className="w-full h-full object-cover"
-                />
+                >
+                    <track kind="captions" label="Captions" />
+                </video>
                 {!remoteStream && (
                     <div className="absolute inset-0 flex items-center justify-center text-white/50">
                         <p>Connecting...</p>
@@ -644,7 +636,9 @@ export function VideoCall() {
                             playsInline
                             muted
                             className={`w-full h-full object-cover ${!stream ? 'hidden' : ''}`}
-                        />
+                        >
+                            <track kind="captions" label="Captions" />
+                        </video>
                         {isVideoPaused && (
                             <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
                                 <VideoOff className="w-8 h-8" />
