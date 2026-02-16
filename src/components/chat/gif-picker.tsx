@@ -224,7 +224,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                     {category === "adult" && (
                         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 mt-2">
                             <span className="text-xs text-muted-foreground mr-1">Quick Search:</span>
-                            {["Lesbian", "Blowjob", "Cumshot", "Mixed"].map((tag) => (
+                            {["Blowjob", "Cumshot", "Mixed"].map((tag) => (
                                 <button
                                     key={tag}
                                     type="button"

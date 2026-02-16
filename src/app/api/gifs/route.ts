@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         // Handle adult category using local JSON
         if (category === "adult") {
             try {
-                const filePath = path.join(process.cwd(), "..", "gifs", "wetgif.popular.by-type.v2.json");
+                const filePath = path.join(process.cwd(), "src", "data", "wetgif.popular.by-type.v2.json");
 
                 // Check if file exists
                 if (!fs.existsSync(filePath)) {
