@@ -193,33 +193,57 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                         className="h-10 rounded-full bg-muted/40 border-0 focus-visible:ring-1 focus-visible:ring-rose-500/50 transition-all font-medium placeholder:text-muted-foreground/60"
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                    {(["kissing", "hug", "romance", "pinch", "bite", "slap", "adult"] as const).map((item) => (
-                        <Button
-                            key={item}
-                            type="button"
-                            variant="ghost"
-                            onClick={() => handleCategoryChange(item)}
-                            className={`h-9 px-3 rounded-full text-sm ${category === item
-                                ? "bg-rose-500/20 text-rose-500"
-                                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                                }`}
-                        >
-                            {item === "kissing"
-                                ? "Kissing"
-                                : item === "hug"
-                                    ? "Hug"
-                                    : item === "romance"
-                                        ? "Romance"
-                                        : item === "pinch"
-                                            ? "Pinch"
-                                            : item === "bite"
-                                                ? "Bite"
-                                                : item === "slap"
-                                                    ? "Slap"
-                                                    : "Adult"}
-                        </Button>
-                    ))}
+                        {(["kissing", "hug", "romance", "pinch", "bite", "slap", "adult"] as const).map((item) => (
+                            <Button
+                                key={item}
+                                type="button"
+                                variant="ghost"
+                                onClick={() => handleCategoryChange(item)}
+                                className={`h-9 px-3 rounded-full text-sm ${category === item
+                                    ? "bg-rose-500/20 text-rose-500"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                    }`}
+                            >
+                                {item === "kissing"
+                                    ? "Kissing"
+                                    : item === "hug"
+                                        ? "Hug"
+                                        : item === "romance"
+                                            ? "Romance"
+                                            : item === "pinch"
+                                                ? "Pinch"
+                                                : item === "bite"
+                                                    ? "Bite"
+                                                    : item === "slap"
+                                                        ? "Slap"
+                                                        : "Adult"}
+                            </Button>
+                        ))}
                     </div>
+
+                    {category === "adult" && (
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 mt-2">
+                            <span className="text-xs text-muted-foreground mr-1">Quick Search:</span>
+                            {["Lesbian", "Blowjob", "Cumshot", "Mixed"].map((tag) => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchQuery(tag);
+                                        // Trigger search logic immediately effectively? 
+                                        // The useEffect depends on debouncedQuery which depends on searchQuery.
+                                        // So setting searchQuery is enough.
+                                        setItems([]);
+                                        setOffset(0);
+                                        setHasMore(true);
+                                    }}
+                                    className="px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-500 text-xs font-medium hover:bg-rose-500/20 transition-colors"
+                                >
+                                    {tag}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {error ? (
@@ -247,6 +271,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                                             src={gif.previewUrl}
                                             alt="GIF preview"
                                             loading="lazy"
+                                            referrerPolicy="no-referrer"
                                             className="absolute inset-0 w-full h-full object-cover transition-opacity group-hover:opacity-90"
                                         />
                                     </button>

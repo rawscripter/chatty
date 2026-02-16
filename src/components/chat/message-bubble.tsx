@@ -178,6 +178,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             alt="Shared media"
                             className="rounded-2xl max-w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
                             loading="lazy"
+                            referrerPolicy="no-referrer"
                         />
                     </button>
                     <div className="absolute bottom-2 right-2 bg-black/40 px-1.5 py-0.5 rounded text-[10px] text-white/90 flex items-center gap-1 backdrop-blur-sm">
@@ -214,6 +215,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                                 alt="Shared GIF"
                                 className="max-w-full max-h-64 object-cover"
                                 loading="lazy"
+                                referrerPolicy="no-referrer"
                             />
                         </button>
                         <span className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-white backdrop-blur-sm">

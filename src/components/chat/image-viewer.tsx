@@ -61,6 +61,7 @@ export function ImageViewer({ src, open, onClose }: ImageViewerProps) {
                         alt="Full view"
                         className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-default"
                         onClick={(e) => e.stopPropagation()}
+                        referrerPolicy="no-referrer"
                     />
                 </motion.div>
             )}

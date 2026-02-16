@@ -7,7 +7,7 @@ export interface IMessageDocument extends mongoose.Document {
     type: "text" | "image" | "gif" | "system";
     imageUrl?: string;
     cloudinaryPublicId?: string;
-    gifCategory?: "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap";
+    gifCategory?: "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult";
     isViewOnce: boolean;
     viewOnceViewed: boolean;
     viewedBy: { user: mongoose.Types.ObjectId; viewedAt: Date }[];
@@ -46,7 +46,7 @@ const MessageSchema = new Schema<IMessageDocument>(
         cloudinaryPublicId: String,
         gifCategory: {
             type: String,
-            enum: ["kissing", "hug", "romance", "pinch", "bite", "slap"],
+            enum: ["kissing", "hug", "romance", "pinch", "bite", "slap", "adult"],
         },
         isViewOnce: {
             type: Boolean,

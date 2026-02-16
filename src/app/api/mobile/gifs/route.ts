@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mobileAuth } from "@/lib/mobile-auth";
 import { gifRateLimit } from "@/lib/rate-limit";
+import fs from "fs";
+import path from "path";
 
 const categoryQueries: Record<"kissing" | "hug" | "romance" | "pinch" | "bite" | "slap", string> = {
     kissing: "kissing",
@@ -35,20 +37,89 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const categoryParam = searchParams.get("category");
         const queryParam = searchParams.get("q");
-        const category = (categoryParam && ["kissing", "hug", "romance", "pinch", "bite", "slap"].includes(categoryParam)
+
+        // Extended category type to include 'adult'
+        const validCategories = ["kissing", "hug", "romance", "pinch", "bite", "slap", "adult"];
+        const category = (categoryParam && validCategories.includes(categoryParam)
             ? categoryParam
-            : "kissing") as "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap";
+            : "kissing") as "kissing" | "hug" | "romance" | "pinch" | "bite" | "slap" | "adult";
 
         const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "24", 10), 1), 36);
         const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+
+        // Handle adult category using local JSON
+        if (category === "adult") {
+            try {
+                const filePath = path.join(process.cwd(), "..", "gifs", "wetgif.popular.by-type.v2.json");
+
+                // Check if file exists
+                if (!fs.existsSync(filePath)) {
+                    console.error("GIF collection file not found at:", filePath);
+                    return NextResponse.json({ success: true, data: [] });
+                }
+
+                const fileContent = fs.readFileSync(filePath, "utf-8");
+                const data = JSON.parse(fileContent);
+
+                let allUrls: string[] = [];
+
+                if (queryParam) {
+                    const normalizedQuery = queryParam.toLowerCase().trim();
+                    // Check if query matches a category key directly
+                    const matchingKey = Object.keys(data).find(key => key.toLowerCase() === normalizedQuery);
+
+                    if (matchingKey) {
+                        allUrls = data[matchingKey] || [];
+                    } else {
+                        // If query doesn't match a specific category, fallback to all
+                        allUrls = Object.values(data).flat() as string[];
+                    }
+                } else {
+                    // No query, show random mix from all categories
+                    allUrls = Object.values(data).flat() as string[];
+                }
+
+                // Random Selection
+                const totalGifs = allUrls.length;
+                const selectedUrls: string[] = [];
+                const indices = new Set<number>();
+
+                // Attempt to pick unique random indices
+                // Safety break after limit * 2 attempts to avoid infinite loop
+                let attempts = 0;
+                while (selectedUrls.length < limit && attempts < limit * 2) {
+                    const randomIndex = Math.floor(Math.random() * totalGifs);
+                    if (!indices.has(randomIndex)) {
+                        indices.add(randomIndex);
+                        selectedUrls.push(allUrls[randomIndex]);
+                    }
+                    attempts++;
+                }
+
+                const items = selectedUrls.map((url: string) => ({
+                    id: url, // Use URL as ID for deduplication in frontend
+                    url: url,
+                    previewUrl: url,
+                    width: 0, // Unknown dimensions
+                    height: 0
+                }));
+
+                return NextResponse.json({ success: true, data: items });
+            } catch (error) {
+                console.error("Error reading local GIF file:", error);
+                return NextResponse.json({ error: "Failed to load local GIFs" }, { status: 500 });
+            }
+        }
 
         const apiKey = process.env.GIPHY_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: "GIF provider not configured" }, { status: 500 });
         }
 
-        const query = queryParam && queryParam.trim().length > 0 ? queryParam.trim() : categoryQueries[category];
-        const rating = categoryRatings[category];
+        const standardCategory = category as Exclude<typeof category, "adult">;
+
+        const query = queryParam && queryParam.trim().length > 0 ? queryParam.trim() : categoryQueries[standardCategory];
+        const rating = categoryRatings[standardCategory];
 
         const giphyUrl = new URL("https://api.giphy.com/v1/gifs/search");
         giphyUrl.searchParams.set("api_key", apiKey);
