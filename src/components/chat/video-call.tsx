@@ -118,7 +118,11 @@ export function VideoCall() {
 
             return currentStream;
         } catch (error) {
-            console.error("Failed to access media devices:", error);
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.warn("Media device request aborted.");
+            } else {
+                console.error("Failed to access media devices:", error);
+            }
             const err = error as Error;
 
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {

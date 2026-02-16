@@ -12,21 +12,43 @@ function getRedisClient(): Redis | null {
 }
 
 const redis = getRedisClient();
+const localUnlockCache = new Map<string, number>();
 
 export default redis;
 
 // Chat unlock cache helpers
 export async function setChatUnlocked(userId: string, chatId: string, ttlSeconds: number = 1800): Promise<void> {
-    if (!redis) return;
     const key = `chat_unlock:${userId}:${chatId}`;
+
+    if (!redis) {
+        localUnlockCache.set(key, Date.now() + ttlSeconds * 1000);
+        return;
+    }
+
     await redis.set(key, "1", { ex: ttlSeconds });
 }
 
 export async function isChatUnlocked(userId: string, chatId: string): Promise<boolean> {
-    if (!redis) return false;
     const key = `chat_unlock:${userId}:${chatId}`;
+
+    if (!redis) {
+        const expiresAt = localUnlockCache.get(key);
+        if (!expiresAt) return false;
+        if (Date.now() > expiresAt) {
+            localUnlockCache.delete(key);
+            return false;
+        }
+        return true;
+    }
+
     const result = await redis.get(key);
-    return result === "1";
+
+    // Upstash can deserialize small scalar values as string, number, or boolean.
+    if (result === "1" || result === 1 || result === true) {
+        return true;
+    }
+
+    return false;
 }
 
 // Online presence helpers
