@@ -259,8 +259,21 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
             initial={{ opacity: 0, y: 10, x: isMine ? 10 : -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className={`group flex gap-2.5 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"} items-end`}
+            className={`group flex gap-2.5 mb-1 ${isMine ? "flex-row-reverse" : "flex-row"} items-end relative`}
+            drag={onReply ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={{ right: 0.3, left: 0.05 }}
+            onDragEnd={(_, info) => {
+                if (onReply && info.offset.x > 60) {
+                    onReply(message);
+                }
+            }}
         >
+            {/* Swipe Reply Indicator */}
+            <div className={`absolute left-[-40px] top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-background/80 shadow-sm border border-border/50 opacity-0 transition-opacity duration-200 ${onReply ? "group-active:opacity-100" : ""}`}>
+                <Reply className="w-4 h-4 text-primary" />
+            </div>
+
             {/* Avatar */}
             {!isMine && (
                 <Avatar className="w-8 h-8 border border-border/40">
