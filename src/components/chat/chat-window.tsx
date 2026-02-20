@@ -74,7 +74,8 @@ export function ChatWindow() {
 
     const applyChatUpdate = useCallback(
         (chatId: string, lastMessage?: IMessage | null, updatedAt?: string | Date) => {
-            const chat = chats.find((item) => item._id === chatId);
+            const currentChats = useChatStore.getState().chats;
+            const chat = currentChats.find((item) => item._id === chatId);
             if (!chat) return;
 
             updateChat({
@@ -88,7 +89,7 @@ export function ChatWindow() {
                 updatedAt: updatedAt ? new Date(updatedAt) : chat.updatedAt,
             });
         },
-        [chats, updateChat]
+        [updateChat]
     );
 
     const playNotificationSound = useCallback(() => {
@@ -127,11 +128,13 @@ export function ChatWindow() {
         }
     }, [notificationMuted]);
 
+    const activeChatId = activeChat?._id;
+
     const syncLatestMessages = useCallback(async () => {
-        if (!activeChat) return;
+        if (!activeChatId) return;
 
         try {
-            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50`);
+            const res = await fetch(`/api/chats/${activeChatId}/messages?limit=50`);
             const data = await res.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
@@ -145,18 +148,18 @@ export function ChatWindow() {
         } catch (error) {
             console.error("Failed to sync latest messages:", error);
         }
-    }, [activeChat, addMessage]);
+    }, [activeChatId, addMessage]);
 
     // Fetch only messages (no lock check)
     const loadMessages = useCallback(async () => {
-        if (!activeChat) return;
+        if (!activeChatId) return;
         setLoading(true);
         setPage(1);
         setHasMore(true);
         setNextCursor(null);
 
         try {
-            const res = await fetch(`/api/chats/${activeChat._id}/messages?limit=50`);
+            const res = await fetch(`/api/chats/${activeChatId}/messages?limit=50`);
             const data = await res.json();
 
             if (data.success) {
@@ -169,10 +172,10 @@ export function ChatWindow() {
         } finally {
             setLoading(false);
         }
-    }, [activeChat, setMessages]);
+    }, [activeChatId, setMessages]);
 
     const loadMoreMessages = useCallback(async () => {
-        if (!activeChat || !hasMore || loadingMore || !nextCursor) return;
+        if (!activeChatId || !hasMore || loadingMore || !nextCursor) return;
 
         setLoadingMore(true);
         const nextPage = page + 1;
@@ -184,7 +187,7 @@ export function ChatWindow() {
 
         try {
             const res = await fetch(
-                `/api/chats/${activeChat._id}/messages?limit=50&cursor=${encodeURIComponent(nextCursor)}`
+                `/api/chats/${activeChatId}/messages?limit=50&cursor=${encodeURIComponent(nextCursor)}`
             );
             const data = await res.json();
 
@@ -212,7 +215,7 @@ export function ChatWindow() {
         } finally {
             setLoadingMore(false);
         }
-    }, [activeChat, hasMore, loadingMore, nextCursor, page, prependMessages]);
+    }, [activeChatId, hasMore, loadingMore, nextCursor, page, prependMessages]);
 
     const handleScroll = useCallback(() => {
         const container = scrollRef.current;
@@ -226,10 +229,10 @@ export function ChatWindow() {
 
     // Fetch messages with lock check (only on initial chat load)
     const fetchMessages = useCallback(async () => {
-        if (!activeChat) return;
+        if (!activeChatId) return;
 
         try {
-            const chatRes = await fetch(`/api/chats/${activeChat._id}`);
+            const chatRes = await fetch(`/api/chats/${activeChatId}`);
             const chatData = await chatRes.json();
 
             if (chatData.data?.isPasswordProtected && !chatData.data?.isUnlocked) {
@@ -243,7 +246,7 @@ export function ChatWindow() {
 
         setIsUnlocked(true);
         await loadMessages();
-    }, [activeChat, loadMessages]);
+    }, [activeChatId, loadMessages]);
 
     useEffect(() => {
         fetchMessages();
@@ -273,14 +276,14 @@ export function ChatWindow() {
 
     // Pusher Subscription & Event Handling
     useEffect(() => {
-        if (!pusher || !activeChat) return;
+        if (!pusher || !activeChatId) return;
 
-        const channelName = `chat-${activeChat._id}`;
+        const channelName = `chat-${activeChatId}`;
         const channel = pusher.subscribe(channelName);
         const connection = pusher.connection;
 
         const flushPendingReadReceipts = async () => {
-            if (!activeChat) return;
+            if (!activeChatId) return;
             const ids = Array.from(pendingReadMessageIdsRef.current);
             if (ids.length === 0) return;
 
@@ -291,7 +294,7 @@ export function ChatWindow() {
             }
 
             try {
-                await fetch(`/api/chats/${activeChat._id}/read`, {
+                await fetch(`/api/chats/${activeChatId}/read`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ messageIds: ids }),
@@ -336,6 +339,7 @@ export function ChatWindow() {
             }
 
             addMessage(message);
+            applyChatUpdate(activeChat._id, message, message.createdAt || new Date());
 
             if (senderId !== session?.user?.id) {
                 playNotificationSound();
@@ -427,10 +431,10 @@ export function ChatWindow() {
             connection.unbind("connected", handleConnected);
             pusher.unsubscribe(channelName);
         };
-    }, [pusher, activeChat, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate, syncLatestMessages]);
+    }, [pusher, activeChatId, session?.user?.id, addMessage, updateMessage, setTyping, replaceMessage, playNotificationSound, removeMessage, applyChatUpdate, syncLatestMessages]);
 
     useEffect(() => {
-        if (!activeChat) return;
+        if (!activeChatId) return;
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible") {
@@ -448,7 +452,7 @@ export function ChatWindow() {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             window.removeEventListener("focus", handleFocus);
         };
-    }, [activeChat, syncLatestMessages]);
+    }, [activeChatId, syncLatestMessages]);
 
     // Scroll Management
     const shouldScrollToBottomRef = useRef(false);
@@ -525,6 +529,7 @@ export function ChatWindow() {
         };
 
         addMessage(tempMessage);
+        applyChatUpdate(activeChat._id, tempMessage, tempMessage.createdAt);
         setReplyingTo(null);
         shouldScrollToBottomRef.current = true;
 
@@ -542,6 +547,7 @@ export function ChatWindow() {
 
             if (result.success) {
                 replaceMessage(tempId, result.data);
+                applyChatUpdate(activeChat._id, result.data, result.data.createdAt);
             } else {
                 // Failed, remove temp message and show error
                 removeMessage(tempId);

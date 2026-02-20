@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 // SocketProvider removed
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatWindow } from "./chat-window";
-import { VideoCall } from "./video-call";
 import { useChatStore } from "@/store/chat-store";
 import { Input } from "@/components/ui/input";
 
@@ -231,9 +230,6 @@ export function ChatLayout() {
                     <ChatWindow />
                 </div>
             </div>
-
-            {/* Video Call Overlay */}
-            <VideoCall />
         </div>
     );
 }

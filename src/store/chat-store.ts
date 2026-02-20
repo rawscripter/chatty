@@ -9,22 +9,6 @@ interface TypingUser {
     userName: string;
 }
 
-interface IncomingCall {
-    chatId: string;
-    callerId: string;
-    callerName: string;
-    callerAvatar?: string;
-    signal: any; // Signal data from simple-peer
-}
-
-interface ActiveCall {
-    chatId: string;
-    isVideoEnabled: boolean;
-    isAudioEnabled: boolean;
-    remoteStream?: MediaStream;
-    remoteUserId: string;
-}
-
 interface ChatStore {
 
     // Chats
@@ -70,16 +54,6 @@ interface ChatStore {
     uiStyle: UiStyle;
     setUiStyle: (style: UiStyle) => void;
 
-    // Video Call
-    activeCall: ActiveCall | null;
-    incomingCall: IncomingCall | null;
-    setActiveCall: (call: ActiveCall | null) => void;
-    setIncomingCall: (call: IncomingCall | null) => void;
-    endCall: () => void;
-
-    // Settings
-    autoAnswer: boolean;
-    setAutoAnswer: (auto: boolean) => void;
 }
 
 
@@ -112,15 +86,22 @@ export const useChatStore = create<ChatStore>((set) => ({
             return { activeChat: chat, messages: [] };
         }),
     updateChat: (updatedChat) =>
-        set((state) => ({
-            chats: state.chats.map((c) =>
+        set((state) => {
+            const nextChats = state.chats.map((c) =>
                 c._id === updatedChat._id ? { ...c, ...updatedChat } : c
-            ),
-            activeChat:
-                state.activeChat?._id === updatedChat._id
-                    ? { ...state.activeChat, ...updatedChat }
-                    : state.activeChat,
-        })),
+            );
+
+            // Sort to ensure the most recently updated chat is at the top
+            nextChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+            return {
+                chats: nextChats,
+                activeChat:
+                    state.activeChat?._id === updatedChat._id
+                        ? { ...state.activeChat, ...updatedChat }
+                        : state.activeChat,
+            };
+        }),
     addChat: (chat) =>
         set((state) => ({
             chats: [chat, ...state.chats.filter((c) => c._id !== chat._id)],
@@ -257,21 +238,6 @@ export const useChatStore = create<ChatStore>((set) => ({
             return { uiStyle: style };
         }),
 
-    // Video Call
-    activeCall: null,
-    incomingCall: null,
-    setActiveCall: (call) => set({ activeCall: call }),
-    setIncomingCall: (call) => set({ incomingCall: call }),
-    endCall: () => set({ activeCall: null, incomingCall: null }),
-
-    // Settings
-    autoAnswer: (typeof window !== "undefined" && window.localStorage.getItem("chatty:auto-answer") !== "false"), // Default to true if not "false"
-    setAutoAnswer: (auto) => set(() => {
-        if (typeof window !== "undefined") {
-            window.localStorage.setItem("chatty:auto-answer", auto ? "true" : "false");
-        }
-        return { autoAnswer: auto };
-    }),
 }));
 
 

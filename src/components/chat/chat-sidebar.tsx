@@ -162,10 +162,11 @@ export function ChatSidebar() {
 
                                 return (
                                     <motion.button
+                                        layout="position"
                                         key={chat._id}
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={false}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.03, duration: 0.2 }}
+                                        transition={{ duration: 0.2 }}
                                         onClick={() => setActiveChat(chat)}
                                         className={`w-full flex items-center gap-3.5 p-3 transition-all duration-200 group relative rounded-2xl outline-none
                                             ${isActive

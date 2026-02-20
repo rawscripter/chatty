@@ -15,9 +15,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser, Palette, Video } from "lucide-react";
+import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser } from "lucide-react";
+import { ChatInfoDialog } from "./chat-info-dialog";
 import type { IChat, IUser } from "@/types";
-import { BubbleTheme } from "@/store/chat-store";
 
 interface ChatHeaderProps {
     chat: IChat;
@@ -26,8 +26,9 @@ interface ChatHeaderProps {
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
-    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats, bubbleTheme, setBubbleTheme, autoAnswer, setAutoAnswer } = useChatStore();
+    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats } = useChatStore();
     const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
+    const [isChatInfoOpen, setIsChatInfoOpen] = useState(false);
 
     const otherParticipant = chat.type === "direct"
         ? (chat.participants as IUser[]).find((p) => p._id !== session?.user?.id)
@@ -127,25 +128,6 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
         }
     };
 
-    const themes: { id: BubbleTheme; name: string; color: string }[] = [
-        { id: "emerald", name: "Emerald", color: "bg-emerald-500" },
-        { id: "blue", name: "Blue", color: "bg-blue-500" },
-        { id: "rose", name: "Rose", color: "bg-rose-500" },
-        { id: "amber", name: "Amber", color: "bg-amber-500" },
-    ];
-
-    const { setActiveCall } = useChatStore();
-
-    const handleVideoCall = () => {
-        if (!isConnected || !otherParticipant) return;
-        setActiveCall({
-            chatId: chat._id,
-            isVideoEnabled: true,
-            isAudioEnabled: true, // This will be ignored by VideoCall component for now as it forces false
-            remoteUserId: otherParticipant._id
-        });
-    };
-
 
     return (
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
@@ -204,19 +186,6 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
             </div>
 
             <div className="flex items-center gap-1">
-                {/* Video Call Button */}
-                {chat.type === "direct" && isConnected && (
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        className="rounded-full mr-1 text-muted-foreground hover:text-foreground"
-                        onClick={handleVideoCall}
-                        title="Start Video Call"
-                    >
-                        <Video className="w-5 h-5" />
-                    </Button>
-                )}
-
                 {/* Connection indicator */}
                 <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-sky-500" : "bg-rose-500"}`} />
 
@@ -227,39 +196,9 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
+                        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setIsChatInfoOpen(true)}>
                             <Users className="w-4 h-4" />
                             Chat info
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuCheckboxItem
-                            checked={autoAnswer}
-                            onCheckedChange={setAutoAnswer}
-                            className="gap-2 cursor-pointer"
-                        >
-                            <Video className="w-4 h-4" />
-                            Auto-Answer Call
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="flex-col items-start gap-2 focus:bg-transparent">
-                            <div className="flex items-center gap-2 text-sm">
-                                <Palette className="w-4 h-4" />
-                                <span>Theme</span>
-                            </div>
-                            <div className="flex gap-1.5 w-full justify-between px-1">
-                                {themes.map((theme) => (
-                                    <button
-                                        type="button"
-                                        key={theme.id}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setBubbleTheme(theme.id);
-                                        }}
-                                        className={`w-6 h-6 rounded-full ${theme.color} ${bubbleTheme === theme.id ? "ring-2 ring-primary ring-offset-2 ring-offset-popover" : "opacity-70 hover:opacity-100"} transition-all`}
-                                        title={theme.name}
-                                    />
-                                ))}
-                            </div>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -287,6 +226,13 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
+            <ChatInfoDialog
+                open={isChatInfoOpen}
+                onOpenChange={setIsChatInfoOpen}
+                chat={chat}
+                otherUser={displayUser || null}
+            />
         </div>
     );
 }

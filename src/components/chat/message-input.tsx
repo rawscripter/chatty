@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Send, Image as ImageIcon, X, Plus, Camera, Sparkles, Zap, LayoutGrid, Smile } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
-import { CameraCapture } from "./camera-capture";
 import { GifPicker } from "./gif-picker";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
@@ -48,7 +47,6 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selfDestruct, setSelfDestruct] = useState(0);
-    const [showCamera, setShowCamera] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -339,12 +337,6 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 </div>
                                 <span className="font-medium">Photos & Videos</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowCamera(true)} className="rounded-xl py-2.5 cursor-pointer">
-                                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mr-3 text-purple-500">
-                                    <Camera className="w-4 h-4" />
-                                </div>
-                                <span className="font-medium">Camera</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setShowGifPicker(true)} className="rounded-xl py-2.5 cursor-pointer">
                                 <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center mr-3 text-pink-500">
                                     <Sparkles className="w-4 h-4" />
@@ -560,21 +552,6 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     accept="image/jpeg,image/png,image/gif,image/webp"
                     onChange={handleFileSelect}
                     className="hidden"
-                />
-
-                <CameraCapture
-                    open={showCamera}
-                    onClose={() => setShowCamera(false)}
-                    onCapture={(file) => {
-                        if (file.size > 5 * 1024 * 1024) {
-                            alert("File too large. Max 5MB.");
-                            return;
-                        }
-                        setImageFile(file);
-                        const reader = new FileReader();
-                        reader.onloadend = () => setImagePreview(reader.result as string);
-                        reader.readAsDataURL(file);
-                    }}
                 />
 
                 <GifPicker
