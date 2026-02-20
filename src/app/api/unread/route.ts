@@ -14,19 +14,22 @@ export async function GET() {
 
     await dbConnect();
 
-    const chatIds = await Chat.find({ participants: session.user.id })
+    const chatIds = (await Chat.find({ participants: session.user.id })
       .select("_id")
-      .lean();
+      .lean()) as Array<{ _id: string }>;
 
-    const ids = chatIds.map((c: any) => c._id);
+    const ids = chatIds.map((c) => c._id);
     if (ids.length === 0) {
       return NextResponse.json({ success: true, data: { unreadTotal: 0 } });
     }
 
+    // NOTE: Using "readBy.user: { $ne: userId }" is incorrect for arrays.
+    // It can match documents where *some other* readBy.user != userId.
+    // We want messages where the readBy array does NOT contain this user.
     const unreadTotal = await Message.countDocuments({
       chat: { $in: ids },
       sender: { $ne: session.user.id },
-      "readBy.user": { $ne: session.user.id },
+      readBy: { $not: { $elemMatch: { user: session.user.id } } },
     });
 
     return NextResponse.json({ success: true, data: { unreadTotal } });

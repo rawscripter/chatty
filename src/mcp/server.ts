@@ -34,14 +34,16 @@ function requireUserId(explicit?: string) {
 }
 
 async function unreadTotalForUser(userId: string) {
-  const chats = await Chat.find({ participants: userId }).select("_id").lean();
-  const ids = chats.map((c: any) => c._id);
+  const chats = (await Chat.find({ participants: userId }).select("_id").lean()) as Array<{ _id: string }>;
+  const ids = chats.map((c) => c._id);
   if (ids.length === 0) return 0;
 
+  // NOTE: "readBy.user: { $ne: userId }" is incorrect for arrays.
+  // We want messages whose readBy array does NOT contain this user.
   return Message.countDocuments({
     chat: { $in: ids },
     sender: { $ne: userId },
-    "readBy.user": { $ne: userId },
+    readBy: { $not: { $elemMatch: { user: userId } } },
   });
 }
 

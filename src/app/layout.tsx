@@ -9,6 +9,7 @@ import { PusherProvider } from "@/components/providers/pusher-provider";
 import { FontProvider } from "@/components/providers/font-provider";
 import { PwaRegister } from "@/components/pwa/pwa-register";
 import { AndroidBadgeSync } from "@/components/pwa/android-badge-sync";
+import { UnreadIndicators } from "@/components/pwa/unread-indicators";
 import { Toaster } from "sonner";
 
 
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <PwaRegister />
         <AndroidBadgeSync />
+        <UnreadIndicators />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

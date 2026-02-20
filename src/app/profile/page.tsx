@@ -38,6 +38,15 @@ export default function ProfilePage() {
     const privacy = useChatStore((state) => state.privacy);
     const setPrivacy = useChatStore((state) => state.setPrivacy);
 
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
+        typeof Notification === "undefined" ? "unsupported" : Notification.permission
+    );
+
+    useEffect(() => {
+        if (typeof Notification === "undefined") return;
+        setNotificationPermission(Notification.permission);
+    }, []);
+
     useEffect(() => {
         if (status === "unauthenticated") {
             router.push("/login");
@@ -331,9 +340,33 @@ export default function ProfilePage() {
                     <div className="space-y-3">
                         <div>
                             <p className="text-sm font-medium">Notifications</p>
-                            <p className="text-xs text-muted-foreground">Control new message sounds.</p>
+                            <p className="text-xs text-muted-foreground">
+                                Enable push notifications (system notifications) and control new message sounds.
+                            </p>
                         </div>
+
                         <div className="flex flex-wrap gap-3">
+                            <Button
+                                variant={notificationPermission === "granted" ? "default" : "ghost"}
+                                onClick={async () => {
+                                    if (typeof Notification === "undefined") {
+                                        setNotificationPermission("unsupported");
+                                        return;
+                                    }
+                                    try {
+                                        const perm = await Notification.requestPermission();
+                                        setNotificationPermission(perm);
+                                        // If granted, Pusher Beams will auto-start on next load (or you can refresh).
+                                    } catch (e) {
+                                        console.error("Notification permission request failed", e);
+                                    }
+                                }}
+                                className="gap-2 justify-start"
+                                disabled={notificationPermission === "unsupported"}
+                            >
+                                Push notifications: {notificationPermission === "unsupported" ? "Unsupported" : notificationPermission}
+                            </Button>
+
                             <Button
                                 variant={notificationMuted ? "default" : "ghost"}
                                 onClick={() => setNotificationMuted(true)}
@@ -349,6 +382,12 @@ export default function ProfilePage() {
                                 Play sounds
                             </Button>
                         </div>
+
+                        {notificationPermission === "granted" ? (
+                            <p className="text-xs text-muted-foreground">
+                                Tip: if you still don’t see notifications, fully close the PWA and reopen it so the push subscription registers.
+                            </p>
+                        ) : null}
                     </div>
 
                     <Separator className="opacity-60" />

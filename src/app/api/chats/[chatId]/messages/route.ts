@@ -242,7 +242,7 @@ export async function POST(
                     return Message.countDocuments({
                         chat: { $in: ids },
                         sender: { $ne: userId },
-                        "readBy.user": { $ne: userId },
+                        readBy: { $not: { $elemMatch: { user: userId } } },
                     });
                 };
 
@@ -271,7 +271,8 @@ export async function POST(
                             data: {
                                 type: "new_message",
                                 chatId: chatId,
-                                unreadTotal: String(unreadTotal),
+                                // Keep as number for the web service worker (badge API).
+                                unreadTotal,
                             },
                         },
                         fcm: {

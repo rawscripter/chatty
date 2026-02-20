@@ -10,9 +10,10 @@ self.addEventListener("push", (event) => {
   // We additionally try to update the Android app badge best-effort.
   try {
     const data = event && event.data ? event.data.json() : null;
-    const unread = data?.unreadTotal ?? data?.unread ?? data?.data?.unreadTotal;
+    const rawUnread = data?.unreadTotal ?? data?.unread ?? data?.data?.unreadTotal;
+    const unread = typeof rawUnread === "number" ? rawUnread : Number.parseInt(String(rawUnread ?? ""), 10);
 
-    if (typeof unread === "number" && self.registration.setAppBadge) {
+    if (Number.isFinite(unread) && typeof unread === "number" && self.registration.setAppBadge) {
       if (unread > 0) self.registration.setAppBadge(unread);
       else if (self.registration.clearAppBadge) self.registration.clearAppBadge();
     } else if (self.registration.setAppBadge) {

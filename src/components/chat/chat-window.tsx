@@ -94,6 +94,9 @@ export function ChatWindow() {
 
     const playNotificationSound = useCallback(() => {
         if (notificationMuted || typeof window === "undefined") return;
+        // If the PWA/tab is backgrounded, prefer system notifications (push) over
+        // playing an in-page sound that can surprise users.
+        if (document.visibilityState !== "visible") return;
 
         try {
             const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;

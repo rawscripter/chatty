@@ -177,7 +177,10 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        if ('serviceWorker' in navigator) {
+        // Beams (web push) requires Notifications permission.
+        // On Android/Chrome, permission prompts must come from a user gesture,
+        // so we only auto-start if permission is already granted.
+        if ("serviceWorker" in navigator && typeof Notification !== "undefined" && Notification.permission === "granted") {
             initBeams();
         }
     }, [session?.user?.id]);
