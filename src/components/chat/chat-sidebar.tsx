@@ -101,8 +101,9 @@ export function ChatSidebar() {
             <div className="px-4 pt-5 pb-3 space-y-4">
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-sm">
-                            <img src="/icons/icon-192.png" className="rounded" alt="logo" />
+                        <div className="w-10 h-10  flex items-center justify-center shadow-sm">
+
+                            <img src="/icons/192.png" className="rounded-full" alt="logo" />
                             {/* <MessageSquare className="w-5 h-5 text-primary-foreground" /> */}
                         </div>
                         <div>
