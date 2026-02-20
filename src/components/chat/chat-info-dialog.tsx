@@ -25,7 +25,7 @@ export function ChatInfoDialog({ open, onOpenChange, chat, otherUser }: ChatInfo
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-3xl overflow-hidden p-0">
+            <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-3xl overflow-hidden p-0 flex flex-col max-h-[90vh]">
                 <div className="bg-gradient-to-b from-primary/10 to-transparent p-6 pb-2">
                     <DialogHeader className="flex flex-col items-center text-center space-y-4">
                         <div className="relative">
@@ -47,7 +47,7 @@ export function ChatInfoDialog({ open, onOpenChange, chat, otherUser }: ChatInfo
                     </DialogHeader>
                 </div>
 
-                <div className="p-6 pt-4 space-y-6 flex-1">
+                <div className="p-6 pt-4 space-y-6 flex-1 overflow-y-auto">
                     {/* Information List */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-4 p-3 rounded-2xl bg-muted/30">
@@ -56,7 +56,7 @@ export function ChatInfoDialog({ open, onOpenChange, chat, otherUser }: ChatInfo
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold">About</p>
-                                <p className="text-sm text-muted-foreground truncate">
+                                <p className="text-sm text-muted-foreground line-clamp-2">
                                     {isGroup ? "This is a group conversation. Messages are shared among all members." : "This is a direct conversation. Messages are private end-to-end between you and this user."}
                                 </p>
                             </div>
