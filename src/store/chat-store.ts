@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { IChat, IMessage } from "@/types";
 
 export type BubbleTheme = "emerald" | "blue" | "rose" | "amber";
@@ -75,169 +76,184 @@ const initialUiStyle: UiStyle =
         (window.localStorage.getItem(uiStyleKey) as UiStyle)) ||
     "default";
 
-export const useChatStore = create<ChatStore>((set) => ({
-    // Chats
-    chats: [],
-    activeChat: null,
-    setChats: (chats) => set({ chats }),
-    setActiveChat: (chat) =>
-        set((state) => {
-            if (state.activeChat?._id === chat?._id) return state;
-            return { activeChat: chat, messages: [] };
-        }),
-    updateChat: (updatedChat) =>
-        set((state) => {
-            const nextChats = state.chats.map((c) =>
-                c._id === updatedChat._id ? { ...c, ...updatedChat } : c
-            );
+// We use Map for typingUsers, which cannot be serialized natively by JSON.stringify
+// We must omit it from persistence.
+export const useChatStore = create<ChatStore>()(
+    persist(
+        (set) => ({
+            // Chats
+            chats: [],
+            activeChat: null,
+            setChats: (chats) => set({ chats }),
+            setActiveChat: (chat) =>
+                set((state) => {
+                    if (state.activeChat?._id === chat?._id) return state;
+                    return { activeChat: chat, messages: [] };
+                }),
+            updateChat: (updatedChat) =>
+                set((state) => {
+                    const nextChats = state.chats.map((c) =>
+                        c._id === updatedChat._id ? { ...c, ...updatedChat } : c
+                    );
 
-            // Sort to ensure the most recently updated chat is at the top
-            nextChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                    // Sort to ensure the most recently updated chat is at the top
+                    nextChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-            return {
-                chats: nextChats,
-                activeChat:
-                    state.activeChat?._id === updatedChat._id
-                        ? { ...state.activeChat, ...updatedChat }
-                        : state.activeChat,
-            };
-        }),
-    addChat: (chat) =>
-        set((state) => ({
-            chats: [chat, ...state.chats.filter((c) => c._id !== chat._id)],
-        })),
+                    return {
+                        chats: nextChats,
+                        activeChat:
+                            state.activeChat?._id === updatedChat._id
+                                ? { ...state.activeChat, ...updatedChat }
+                                : state.activeChat,
+                    };
+                }),
+            addChat: (chat) =>
+                set((state) => ({
+                    chats: [chat, ...state.chats.filter((c) => c._id !== chat._id)],
+                })),
 
-    // Messages
-    messages: [],
-    setMessages: (messages) => set({ messages }),
-    addMessage: (message) =>
-        set((state) => {
-            // Avoid duplicates
-            if (state.messages.some((m) => m._id === message._id)) {
-                return state;
-            }
-            return { messages: [...state.messages, message] };
-        }),
-    updateMessage: (messageId, updates) =>
-        set((state) => ({
-            messages: state.messages.map((m) =>
-                m._id === messageId ? { ...m, ...updates } : m
-            ),
-        })),
-    removeMessage: (messageId) =>
-        set((state) => ({
-            messages: state.messages.filter((m) => m._id !== messageId),
-        })),
-    replaceMessage: (messageId, message) =>
-        set((state) => {
-            const exists = state.messages.some((m) => m._id === message._id);
-            const replaced = state.messages.some((m) => m._id === messageId);
-
-            if (exists) {
-                return state;
-            }
-
-            if (replaced) {
-                return {
+            // Messages
+            messages: [],
+            setMessages: (messages) => set({ messages }),
+            addMessage: (message) =>
+                set((state) => {
+                    // Avoid duplicates
+                    if (state.messages.some((m) => m._id === message._id)) {
+                        return state;
+                    }
+                    return { messages: [...state.messages, message] };
+                }),
+            updateMessage: (messageId, updates) =>
+                set((state) => ({
                     messages: state.messages.map((m) =>
-                        m._id === messageId ? message : m
+                        m._id === messageId ? { ...m, ...updates } : m
                     ),
-                };
-            }
+                })),
+            removeMessage: (messageId) =>
+                set((state) => ({
+                    messages: state.messages.filter((m) => m._id !== messageId),
+                })),
+            replaceMessage: (messageId, message) =>
+                set((state) => {
+                    const exists = state.messages.some((m) => m._id === message._id);
+                    const replaced = state.messages.some((m) => m._id === messageId);
 
-            return { messages: [...state.messages, message] };
+                    if (exists) {
+                        return state;
+                    }
+
+                    if (replaced) {
+                        return {
+                            messages: state.messages.map((m) =>
+                                m._id === messageId ? message : m
+                            ),
+                        };
+                    }
+
+                    return { messages: [...state.messages, message] };
+                }),
+            prependMessages: (newMessages) =>
+                set((state) => {
+                    const existingIds = new Set(state.messages.map((m) => m._id));
+                    const uniqueNewMessages = newMessages.filter(
+                        (m) => !existingIds.has(m._id)
+                    );
+                    return { messages: [...uniqueNewMessages, ...state.messages] };
+                }),
+
+            // Typing
+            typingUsers: new Map(),
+            setTyping: (chatId, userId, userName, isTyping) =>
+                set((state) => {
+                    const newMap = new Map(state.typingUsers);
+                    const current = newMap.get(chatId) || [];
+
+                    if (isTyping) {
+                        if (!current.find((u) => u.userId === userId)) {
+                            newMap.set(chatId, [...current, { userId, userName }]);
+                        }
+                    } else {
+                        newMap.set(chatId, current.filter((u) => u.userId !== userId));
+                    }
+
+                    return { typingUsers: newMap };
+                }),
+
+            // UI
+            isSidebarOpen: true,
+            setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+            notificationMuted: initialNotificationMuted,
+            setNotificationMuted: (muted) =>
+                set(() => {
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(notificationMuteKey, muted ? "true" : "false");
+                    }
+                    return { notificationMuted: muted };
+                }),
+
+            // Theme
+            bubbleTheme: initialTheme,
+            setBubbleTheme: (theme) =>
+                set(() => {
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(themeKey, theme);
+                    }
+                    return { bubbleTheme: theme };
+                }),
+
+            // Font
+            fontFamily: (typeof window !== "undefined" && window.localStorage.getItem("chatty:font-family")) || "Inter",
+            setFontFamily: (font: string) =>
+                set(() => {
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem("chatty:font-family", font);
+                    }
+                    return { fontFamily: font };
+                }),
+
+            // Accent Color
+            accentColor: (typeof window !== "undefined" && window.localStorage.getItem("chatty:accent-color")) || "default",
+            setAccentColor: (color: string) =>
+                set(() => {
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem("chatty:accent-color", color);
+
+                        // Update the document class for global CSS variables
+                        document.documentElement.classList.remove(
+                            "theme-rose",
+                            "theme-blue",
+                            "theme-green",
+                            "theme-orange",
+                            "theme-monochrome"
+                        );
+                        if (color !== "default") {
+                            document.documentElement.classList.add(`theme-${color}`);
+                        }
+                    }
+                    return { accentColor: color };
+                }),
+
+            // UI Style
+            uiStyle: initialUiStyle,
+            setUiStyle: (style: UiStyle) =>
+                set(() => {
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(uiStyleKey, style);
+                    }
+                    return { uiStyle: style };
+                }),
+
         }),
-    prependMessages: (newMessages) =>
-        set((state) => {
-            const existingIds = new Set(state.messages.map((m) => m._id));
-            const uniqueNewMessages = newMessages.filter(
-                (m) => !existingIds.has(m._id)
-            );
-            return { messages: [...uniqueNewMessages, ...state.messages] };
-        }),
-
-    // Typing
-    typingUsers: new Map(),
-    setTyping: (chatId, userId, userName, isTyping) =>
-        set((state) => {
-            const newMap = new Map(state.typingUsers);
-            const current = newMap.get(chatId) || [];
-
-            if (isTyping) {
-                if (!current.find((u) => u.userId === userId)) {
-                    newMap.set(chatId, [...current, { userId, userName }]);
-                }
-            } else {
-                newMap.set(chatId, current.filter((u) => u.userId !== userId));
-            }
-
-            return { typingUsers: newMap };
-        }),
-
-    // UI
-    isSidebarOpen: true,
-    setSidebarOpen: (open) => set({ isSidebarOpen: open }),
-    notificationMuted: initialNotificationMuted,
-    setNotificationMuted: (muted) =>
-        set(() => {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(notificationMuteKey, muted ? "true" : "false");
-            }
-            return { notificationMuted: muted };
-        }),
-
-    // Theme
-    bubbleTheme: initialTheme,
-    setBubbleTheme: (theme) =>
-        set(() => {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(themeKey, theme);
-            }
-            return { bubbleTheme: theme };
-        }),
-
-    // Font
-    fontFamily: (typeof window !== "undefined" && window.localStorage.getItem("chatty:font-family")) || "Inter",
-    setFontFamily: (font: string) =>
-        set(() => {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem("chatty:font-family", font);
-            }
-            return { fontFamily: font };
-        }),
-
-    // Accent Color
-    accentColor: (typeof window !== "undefined" && window.localStorage.getItem("chatty:accent-color")) || "default",
-    setAccentColor: (color: string) =>
-        set(() => {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem("chatty:accent-color", color);
-
-                // Update the document class for global CSS variables
-                document.documentElement.classList.remove(
-                    "theme-rose",
-                    "theme-blue",
-                    "theme-green",
-                    "theme-orange",
-                    "theme-monochrome"
-                );
-                if (color !== "default") {
-                    document.documentElement.classList.add(`theme-${color}`);
-                }
-            }
-            return { accentColor: color };
-        }),
-
-    // UI Style
-    uiStyle: initialUiStyle,
-    setUiStyle: (style: UiStyle) =>
-        set(() => {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(uiStyleKey, style);
-            }
-            return { uiStyle: style };
-        }),
-
-}));
+        {
+            name: "chatty-storage", // local storage key
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                chats: state.chats,
+                messages: state.messages,
+                // Do NOT persist activeChat, typingUsers, isSidebarOpen etc.
+            }),
+        }
+    )
+);
 
 
