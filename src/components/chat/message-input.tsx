@@ -50,6 +50,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     const [showCamera, setShowCamera] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastTypingTrueSentAtRef = useRef(0);
     const isTypingRef = useRef(false);
@@ -131,6 +132,18 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
             stopTyping(true);
         };
     }, [stopTyping]);
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+                e.preventDefault();
+                textareaRef.current?.focus();
+            }
+        };
+
+        document.addEventListener("keydown", handleGlobalKeyDown);
+        return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+    }, []);
 
     const handleImageSend = async () => {
         if (!imageFile) return;
@@ -223,8 +236,8 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
         <div className="p-4 bg-background z-10">
             <div className={`
                 relative flex flex-col transition-all duration-300
-                bg-background/80 backdrop-blur-xl rounded-[24px] border border-border/40 shadow-sm
-                focus-within:shadow-md focus-within:bg-background focus-within:border-primary/30
+                bg-muted/40 dark:bg-muted/40 backdrop-blur-xl rounded-[24px] border border-border/50 shadow-sm
+                focus-within:shadow-md focus-within:bg-muted/80 dark:focus-within:bg-muted/40 focus-within:border-primary/50
                 ${message.length > 50 ? 'rounded-[28px]' : ''}
             `}>
                 {/* Reply Preview */}
@@ -331,6 +344,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     {/* Text Input Area */}
                     <div className="flex-1 min-h-[40px] py-2">
                         <TextareaAutosize
+                            ref={textareaRef}
                             minRows={1}
                             maxRows={6}
                             placeholder={replyTo ? "Type a reply..." : "Message..."}
