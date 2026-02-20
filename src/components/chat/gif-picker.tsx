@@ -28,6 +28,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [adultLocked, setAdultLocked] = useState(false);
+    const [adultUnlocked, setAdultUnlocked] = useState(false);
     const [adultOtp, setAdultOtp] = useState("");
     const [unlockingAdult, setUnlockingAdult] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -56,6 +57,10 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
             setItems([]);
             setOffset(0);
             setHasMore(true);
+            setAdultLocked(false);
+            setAdultUnlocked(false);
+            setAdultOtp("");
+            setError(null);
         }
     }, [open]);
 
@@ -75,6 +80,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
             setLoading(true);
             setError(null);
             setAdultLocked(false);
+            if (category !== "adult") setAdultUnlocked(false);
             try {
                 // For Giphy, we use the offset state.
                 // For Adult (random), we effectively fetch a new random batch each time.
@@ -96,6 +102,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                 if (!res.ok || !data.success) {
                     if (data?.error === "ADULT_LOCKED" && category === "adult") {
                         setAdultLocked(true);
+                        setAdultUnlocked(false);
                         // Don’t show as a generic error; show unlock UI.
                         return;
                     }
@@ -108,6 +115,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                 }
 
                 const newItems = data.data || [];
+                if (category === "adult") setAdultUnlocked(true);
                 setItems(prev => {
                     // Prevent duplicates if API returns same items
                     const existingIds = new Set(prev.map(i => i.id));
@@ -133,6 +141,15 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
         setItems([]);
         setOffset(0);
         setHasMore(true);
+        setError(null);
+        if (newCategory === "adult") {
+            // Don’t show adult-only UI until we know this session is unlocked.
+            setAdultUnlocked(false);
+        } else {
+            setAdultLocked(false);
+            setAdultUnlocked(false);
+            setAdultOtp("");
+        }
     };
 
     const handleRefresh = () => {
@@ -215,7 +232,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                         ))}
                     </div>
 
-                    {category === "adult" && (
+                    {category === "adult" && adultUnlocked && (
                         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 mt-2">
                             <span className="text-xs text-muted-foreground mr-1">Quick Search:</span>
                             {["Blowjob", "Cumshot", "Mixed"].map((tag) => (
@@ -224,9 +241,6 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                                     type="button"
                                     onClick={() => {
                                         setSearchQuery(tag);
-                                        // Trigger search logic immediately effectively? 
-                                        // The useEffect depends on debouncedQuery which depends on searchQuery.
-                                        // So setting searchQuery is enough.
                                         setItems([]);
                                         setOffset(0);
                                         setHasMore(true);
@@ -272,6 +286,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
 
                                         // Unlocked; trigger reload
                                         setAdultLocked(false);
+                                        setAdultUnlocked(true);
                                         setError(null);
                                         setItems([]);
                                         setOffset(0);
