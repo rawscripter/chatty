@@ -7,6 +7,7 @@ import { ChatSidebar } from "./chat-sidebar";
 import { ChatWindow } from "./chat-window";
 import { useChatStore } from "@/store/chat-store";
 import { Input } from "@/components/ui/input";
+import { SafeScreen } from "@/components/privacy/safe-screen";
 
 function getStoredLockState(
     idleLockKey: string,
@@ -23,7 +24,7 @@ function getStoredLockState(
 
 export function ChatLayout() {
     const { data: session } = useSession();
-    const { activeChat, setActiveChat, chats, setPrivacy } = useChatStore();
+    const { activeChat, setActiveChat, chats, setPrivacy, panicActive, panicMode } = useChatStore();
     const idleTimeoutMs = 120000;
     const masterPasswordValue = "9";
     const idleLockKey = "chatty:idle-locked";
@@ -199,6 +200,7 @@ export function ChatLayout() {
 
     return (
         <div className="flex h-[100dvh] overflow-hidden relative bg-background">
+            {panicActive && <SafeScreen mode={panicMode} />}
             {isLocked && (
                 <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
                     <div className="w-full max-w-sm px-6 text-center space-y-4">
@@ -241,7 +243,7 @@ export function ChatLayout() {
                        ${activeChat ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
                     `}
                 >
-                    <ChatWindow />
+                    {!panicActive && <ChatWindow />}
                 </div>
             </div>
         </div>

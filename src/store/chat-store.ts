@@ -15,11 +15,19 @@ interface TypingUser {
     userName: string;
 }
 
+export type PanicScreenMode = "blank" | "fake_inbox" | "calculator";
+
 interface ChatStore {
 
     // Global privacy
     privacy: PrivacySettings;
     setPrivacy: (privacy: Partial<PrivacySettings>) => void;
+
+    // Panic / Safe screen
+    panicActive: boolean;
+    panicMode: PanicScreenMode;
+    activatePanic: (mode?: PanicScreenMode) => void;
+    deactivatePanic: () => void;
 
     // Chats
     chats: IChat[];
@@ -114,6 +122,14 @@ export const useChatStore = create<ChatStore>()(
                     }
                     return { privacy: next };
                 }),
+
+            // Panic / Safe screen
+            panicActive: false,
+            panicMode: "fake_inbox",
+            activatePanic: (mode = "fake_inbox") =>
+                set(() => ({ panicActive: true, panicMode: mode })),
+            deactivatePanic: () =>
+                set(() => ({ panicActive: false })),
 
             // Chats
             chats: [],

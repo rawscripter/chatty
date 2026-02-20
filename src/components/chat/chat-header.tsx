@@ -15,7 +15,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser } from "lucide-react";
+import { ArrowLeft, Lock, MoreVertical, Users, LogOut, Trash2, Eraser, ShieldAlert } from "lucide-react";
 import { ChatInfoDialog } from "./chat-info-dialog";
 import type { IChat, IUser } from "@/types";
 
@@ -26,7 +26,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ chat }: ChatHeaderProps) {
     const { data: session } = useSession();
     const { isConnected, onlineUsers } = usePusher();
-    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats } = useChatStore();
+    const { setSidebarOpen, setActiveChat, setMessages, updateChat, setChats, chats, activatePanic } = useChatStore();
     const [otherUserDetails, setOtherUserDetails] = useState<IUser | null>(null);
     const [isChatInfoOpen, setIsChatInfoOpen] = useState(false);
 
@@ -188,6 +188,18 @@ export function ChatHeader({ chat }: ChatHeaderProps) {
             <div className="flex items-center gap-1">
                 {/* Connection indicator */}
                 <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-sky-500" : "bg-rose-500"}`} />
+
+                {/* Panic button */}
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    className="rounded-full"
+                    onClick={() => activatePanic("fake_inbox")}
+                    aria-label="Panic"
+                    title="Panic (hide screen)"
+                >
+                    <ShieldAlert className="w-5 h-5" />
+                </Button>
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
