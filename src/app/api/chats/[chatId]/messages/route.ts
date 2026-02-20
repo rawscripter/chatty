@@ -220,27 +220,53 @@ export async function POST(
                     secretKey: process.env.PUSHER_BEAMS_SECRET_KEY!,
                 });
 
-                await beamsClient.publishToInterests(recipients, {
-                    web: {
-                        notification: {
-                            title: `New Message from ${senderName}`,
-                            body: String(messagePreview),
-                            icon: "/vercel.svg",
-                            deep_link: baseUrl ? `${baseUrl}/chat/${chatId}` : undefined,
+                const computeUnreadTotal = async (userId: string) => {
+                    const userChatIds = await Chat.find({ participants: userId })
+                        .select("_id")
+                        .lean();
+                    const ids = userChatIds.map((c: any) => c._id);
+                    if (ids.length === 0) return 0;
+
+                    return Message.countDocuments({
+                        chat: { $in: ids },
+                        sender: { $ne: userId },
+                        "readBy.user": { $ne: userId },
+                    });
+                };
+
+                // Publish per-recipient so each user gets their own unreadTotal (badge accuracy).
+                for (const interest of recipients) {
+                    const userId = interest.replace(/^user-/, "");
+                    const unreadTotal = await computeUnreadTotal(userId);
+
+                    await beamsClient.publishToInterests([interest], {
+                        web: {
+                            notification: {
+                                title: `New Message from ${senderName}`,
+                                body: String(messagePreview),
+                                icon: "/icons/icon-192.png",
+                                deep_link: baseUrl ? `${baseUrl}/chat/${chatId}` : undefined,
+                            },
+                            data: {
+                                type: "new_message",
+                                chatId: chatId,
+                                unreadTotal: String(unreadTotal),
+                            },
                         },
-                    },
-                    fcm: {
-                        notification: {
-                            title: `New Message from ${senderName}`,
-                            body: String(messagePreview),
-                            icon: "ic_notification",
+                        fcm: {
+                            notification: {
+                                title: `New Message from ${senderName}`,
+                                body: String(messagePreview),
+                                icon: "ic_notification",
+                            },
+                            data: {
+                                chatId: chatId,
+                                type: "new_message",
+                                unreadTotal: String(unreadTotal),
+                            },
                         },
-                        data: {
-                            chatId: chatId,
-                            type: "new_message"
-                        }
-                    }
-                });
+                    });
+                }
             } catch (pushError) {
                 console.error("[Pusher Beams] Failed to send push for new message:", pushError);
             }
