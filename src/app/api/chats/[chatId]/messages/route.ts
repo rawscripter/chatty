@@ -188,41 +188,38 @@ export async function POST(
             messageData.selfDestructAt = new Date(Date.now() + selfDestructMinutes * 60 * 1000);
         }
 
+        // Create and populate message in memory (saves a round trip)
         const message = await Message.create(messageData);
+        let populatedMessage = await message.populate([{
+            path: 'sender',
+            select: 'name email avatar'
+        }, {
+            path: 'replyTo',
+            select: 'content type sender',
+            populate: { path: "sender", select: "name" },
+            strictPopulate: false
+        }]);
 
-        // Update chat's last message
-        await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id });
+        // Mongoose 9+ returns a hydrated document from .populate on a doc, so we must rely on toObject/lean equivalent to strip mongoose internals
+        const messageObject = populatedMessage.toObject();
 
-        const populatedMessage = await Message.findById(message._id)
-            .populate("sender", "name email avatar")
-            .populate({
-                path: "replyTo",
-                select: "content type sender",
-                populate: { path: "sender", select: "name" },
-                strictPopulate: false
-            })
-            .lean();
+        // Run chat update and push notification concurrently
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
+        const senderName = messageObject?.sender && typeof messageObject.sender === 'object' && 'name' in messageObject.sender ? messageObject.sender.name : "Someone";
+        const messagePreview = type === "text" ? content : `Sent a ${type}`;
 
-        // Trigger Pusher event
-        await pusherServer.trigger(`chat-${chatId}`, "message:new", populatedMessage);
+        const recipients = chat.participants
+            .filter((p: mongoose.Types.ObjectId) => p.toString() !== session.user.id.toString())
+            .map((p: mongoose.Types.ObjectId) => `user-${p.toString()}`);
 
-        // Send Push Notification via Beams to all OTHER participants in the chat
-        try {
-            const beamsClient = new PushNotifications({
-                instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID!,
-                secretKey: process.env.PUSHER_BEAMS_SECRET_KEY!,
-            });
+        const pushNotificationPromise = async () => {
+            if (recipients.length === 0) return;
+            try {
+                const beamsClient = new PushNotifications({
+                    instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID!,
+                    secretKey: process.env.PUSHER_BEAMS_SECRET_KEY!,
+                });
 
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
-            const senderName = populatedMessage?.sender && typeof populatedMessage.sender === 'object' && 'name' in populatedMessage.sender ? populatedMessage.sender.name : "Someone";
-            const messagePreview = type === "text" ? content : `Sent a ${type}`;
-
-            // Get all participants EXCEPT the sender
-            const recipients = chat.participants
-                .filter((p: mongoose.Types.ObjectId) => p.toString() !== session.user.id.toString())
-                .map((p: mongoose.Types.ObjectId) => `user-${p.toString()}`);
-
-            if (recipients.length > 0) {
                 await beamsClient.publishToInterests(recipients, {
                     web: {
                         notification: {
@@ -244,12 +241,19 @@ export async function POST(
                         }
                     }
                 });
+            } catch (pushError) {
+                console.error("[Pusher Beams] Failed to send push for new message:", pushError);
             }
-        } catch (pushError) {
-            console.error("[Pusher Beams] Failed to send push for new message:", pushError);
-        }
+        };
 
-        return NextResponse.json({ success: true, data: populatedMessage }, { status: 201 });
+        // Fire and forget updates
+        Promise.all([
+            Chat.findByIdAndUpdate(chatId, { lastMessage: message._id }),
+            pusherServer.trigger(`chat-${chatId}`, "message:new", messageObject),
+            pushNotificationPromise()
+        ]).catch(err => console.error("Background task error:", err));
+
+        return NextResponse.json({ success: true, data: messageObject }, { status: 201 });
     } catch (error) {
         console.error("Send message error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

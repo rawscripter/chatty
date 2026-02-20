@@ -19,6 +19,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import imageCompression from "browser-image-compression";
 
 import type { IMessage } from "@/types";
 
@@ -152,8 +153,20 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
 
         setUploading(true);
         try {
+            let fileToUpload = imageFile;
+
+            // Compress image if it's not a GIF
+            if (!isGif) {
+                const options = {
+                    maxSizeMB: 0.2, // ~200KB max
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true,
+                };
+                fileToUpload = await imageCompression(imageFile, options);
+            }
+
             const formData = new FormData();
-            formData.append("file", imageFile);
+            formData.append("file", fileToUpload);
 
             const res = await fetch("/api/upload", {
                 method: "POST",
