@@ -7,6 +7,7 @@ import { AccentColorProvider } from "@/components/providers/accent-color-provide
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PusherProvider } from "@/components/providers/pusher-provider";
 import { FontProvider } from "@/components/providers/font-provider";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 import { Toaster } from "sonner";
 
 
@@ -18,9 +19,18 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Chatty — Real-Time Chat",
   description: "A modern, secure real-time chat application",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
+};
+
+export const viewport = {
+  themeColor: "#0b0b0f",
 };
 
 export default function RootLayout({
@@ -31,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
+        <PwaRegister />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
