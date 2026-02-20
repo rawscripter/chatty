@@ -23,7 +23,7 @@ function getStoredLockState(
 
 export function ChatLayout() {
     const { data: session } = useSession();
-    const { activeChat, setActiveChat, chats } = useChatStore();
+    const { activeChat, setActiveChat, chats, setPrivacy } = useChatStore();
     const idleTimeoutMs = 120000;
     const masterPasswordValue = "9";
     const idleLockKey = "chatty:idle-locked";
@@ -74,6 +74,20 @@ export function ChatLayout() {
     useEffect(() => {
         if (!session) return;
 
+        // Sync privacy settings from server (source of truth)
+        // This ensures Blur Mode applies even if the user never opened /profile.
+        fetch("/api/users/me", { cache: "no-store" })
+            .then((r) => r.json())
+            .then((j) => {
+                const p = j?.data?.privacy;
+                if (!p) return;
+                setPrivacy({
+                    intimateModeEnabled: !!p.intimateModeEnabled,
+                    hideNotificationPreviews: p.hideNotificationPreviews !== false,
+                });
+            })
+            .catch(() => { });
+
         const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
         if (shouldLock) {
             setIsLocked(true);
@@ -81,7 +95,7 @@ export function ChatLayout() {
         } else {
             setLockedState(false);
         }
-    }, [session, setLockedState]);
+    }, [session, setLockedState, setPrivacy]);
 
     useEffect(() => {
         if (!session) return;

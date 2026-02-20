@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -23,6 +23,14 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
     const [step, setStep] = useState<"confirm" | "viewing" | "done">("confirm");
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAutoCloseTimer = () => {
+        if (autoCloseTimerRef.current) {
+            clearTimeout(autoCloseTimerRef.current);
+            autoCloseTimerRef.current = null;
+        }
+    };
 
     const handleView = async () => {
         setLoading(true);
@@ -32,13 +40,15 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                 setImageUrl(url);
                 setStep("viewing");
 
-                // Auto-close after 30 seconds
-                setTimeout(() => {
+                // Auto-close after 30 seconds (clear previous timers first)
+                clearAutoCloseTimer();
+                autoCloseTimerRef.current = setTimeout(() => {
                     setStep("done");
                     setImageUrl(null);
                     onOpenChange(false);
                     setStep("confirm");
-                }, 30000);
+                    clearAutoCloseTimer();
+                }, 30_000);
             }
         } catch (error) {
             console.error("View-once error:", error);
@@ -48,10 +58,17 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
     };
 
     const handleClose = () => {
+        clearAutoCloseTimer();
         setStep("confirm");
         setImageUrl(null);
         onOpenChange(false);
     };
+
+    // Safety: clear timer on unmount
+    useEffect(() => {
+        return () => clearAutoCloseTimer();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -77,7 +94,7 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                                     <DialogTitle className="text-lg">View Once Photo</DialogTitle>
                                     <DialogDescription>
                                         This photo can only be viewed <span className="font-semibold text-amber-500">one time</span>.
-                                        Once you open it, it will be permanently deleted.
+                                        Once you open it, it will be hidden and cannot be viewed again.
                                     </DialogDescription>
                                 </DialogHeader>
                             </div>
@@ -85,7 +102,7 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                                 <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                                 <p className="text-xs text-amber-600 dark:text-amber-400 text-left">
-                                    The image will auto-close after 30 seconds and cannot be recovered.
+                                    The image will auto-close after 30 seconds and cannot be viewed again.
                                 </p>
                             </div>
 
@@ -139,7 +156,7 @@ export function ViewOnceModal({ open, onOpenChange, messageId, onConfirmView }: 
                                     className="h-full bg-gradient-to-r from-amber-500 to-red-500"
                                     initial={{ width: "100%" }}
                                     animate={{ width: "0%" }}
-                                    transition={{ duration: 10, ease: "linear" }}
+                                    transition={{ duration: 30, ease: "linear" }}
                                 />
                             </div>
 

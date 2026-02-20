@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Chat from "@/models/chat";
 import Message from "@/models/message";
-import { deleteImage } from "@/lib/cloudinary";
 import { pusherServer } from "@/lib/pusher";
 
 export async function DELETE(
@@ -34,20 +33,16 @@ export async function DELETE(
         }
 
         const senderId = message.sender.toString();
-        const isAdmin = chat.admins?.some((adminId: string | { toString: () => string }) =>
-            String(adminId) === session.user.id
+        const isAdmin = chat.admins?.some(
+            (adminId: string | { toString: () => string }) => String(adminId) === session.user.id
         );
         if (senderId !== session.user.id && !isAdmin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        if (message.cloudinaryPublicId) {
-            try {
-                await deleteImage(message.cloudinaryPublicId);
-            } catch (error) {
-                console.error("Failed to delete image:", error);
-            }
-        }
+        // Intimacy & privacy rule: we do NOT delete the underlying Cloudinary asset.
+        // Deleting a message removes it from chat history, but the media stays in storage.
+        // (If we later want storage cleanup, do it via an explicit retention / admin job.)
 
         await Message.deleteOne({ _id: messageId });
 

@@ -5,12 +5,21 @@ import type { IChat, IMessage } from "@/types";
 export type BubbleTheme = "emerald" | "blue" | "rose" | "amber";
 export type UiStyle = "default" | "glass";
 
+export interface PrivacySettings {
+    intimateModeEnabled: boolean;
+    hideNotificationPreviews: boolean;
+}
+
 interface TypingUser {
     userId: string;
     userName: string;
 }
 
 interface ChatStore {
+
+    // Global privacy
+    privacy: PrivacySettings;
+    setPrivacy: (privacy: Partial<PrivacySettings>) => void;
 
     // Chats
     chats: IChat[];
@@ -81,6 +90,31 @@ const initialUiStyle: UiStyle =
 export const useChatStore = create<ChatStore>()(
     persist(
         (set) => ({
+            // Global privacy
+            privacy: {
+                intimateModeEnabled:
+                    typeof window !== "undefined" && window.localStorage.getItem("chatty:privacy:intimate") === "true",
+                hideNotificationPreviews:
+                    typeof window !== "undefined"
+                        ? window.localStorage.getItem("chatty:privacy:hide-previews") !== "false"
+                        : true,
+            },
+            setPrivacy: (privacy) =>
+                set((state) => {
+                    const next = { ...state.privacy, ...privacy };
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(
+                            "chatty:privacy:intimate",
+                            next.intimateModeEnabled ? "true" : "false"
+                        );
+                        window.localStorage.setItem(
+                            "chatty:privacy:hide-previews",
+                            next.hideNotificationPreviews ? "true" : "false"
+                        );
+                    }
+                    return { privacy: next };
+                }),
+
             // Chats
             chats: [],
             activeChat: null,
@@ -249,7 +283,8 @@ export const useChatStore = create<ChatStore>()(
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 chats: state.chats,
-                messages: state.messages,
+                // Blur mode: avoid persisting message content to localStorage.
+                ...(state.privacy.intimateModeEnabled ? {} : { messages: state.messages }),
                 // Do NOT persist activeChat, typingUsers, isSidebarOpen etc.
             }),
         }

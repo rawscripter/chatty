@@ -1,5 +1,10 @@
 import mongoose, { Schema, models, model } from "mongoose";
 
+export interface IUserPrivacySettings {
+    intimateModeEnabled: boolean;
+    hideNotificationPreviews: boolean;
+}
+
 export interface IUserDocument extends mongoose.Document {
     name: string;
     email: string;
@@ -7,6 +12,7 @@ export interface IUserDocument extends mongoose.Document {
     avatar?: string;
     isOnline: boolean;
     lastSeen: Date;
+    privacy: IUserPrivacySettings;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -45,6 +51,16 @@ const UserSchema = new Schema<IUserDocument>(
         lastSeen: {
             type: Date,
             default: Date.now,
+        },
+        privacy: {
+            intimateModeEnabled: {
+                type: Boolean,
+                default: false,
+            },
+            hideNotificationPreviews: {
+                type: Boolean,
+                default: true,
+            },
         },
     },
     {

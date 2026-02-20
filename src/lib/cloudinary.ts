@@ -29,10 +29,20 @@ export async function deleteImage(publicId: string): Promise<void> {
 }
 
 export function getSignedUrl(publicId: string, expiresInSeconds: number = 60): string {
+    // IMPORTANT:
+    // We intentionally DO NOT use Cloudinary "authenticated" delivery here.
+    // Many accounts require extra configuration for authenticated delivery, and misconfig
+    // results in broken images.
+    //
+    // Instead we rely on:
+    // 1) app-level authorization (our /api/media/cloudinary-url endpoint)
+    // 2) short-lived signed transformation URL (expires_at)
+    //
+    // This still prevents casual link reuse while keeping media reliably viewable.
     return cloudinary.url(publicId, {
         sign_url: true,
-        type: "authenticated",
         secure: true,
+        // Default delivery type ("upload")
         transformation: [{ quality: "auto", fetch_format: "auto" }],
         expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
     });

@@ -13,7 +13,7 @@ export async function GET() {
         await dbConnect();
 
         const user = await User.findById(session.user.id)
-            .select("name email avatar")
+            .select("name email avatar privacy")
             .lean();
 
         if (!user) {
@@ -64,7 +64,7 @@ export async function PUT(req: NextRequest) {
             new: true,
             runValidators: true,
         })
-            .select("name email avatar")
+            .select("name email avatar privacy")
             .lean();
 
         if (!user) {
@@ -74,6 +74,49 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ success: true, data: user });
     } catch (error) {
         console.error("Update profile error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await dbConnect();
+
+        const body = (await req.json()) as unknown;
+        const parsed = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+        const intimateModeEnabledRaw = parsed.intimateModeEnabled;
+        const hideNotificationPreviewsRaw = parsed.hideNotificationPreviews;
+
+        const privacyUpdates: Record<string, unknown> = {};
+
+        if (typeof intimateModeEnabledRaw === "boolean") {
+            privacyUpdates["privacy.intimateModeEnabled"] = intimateModeEnabledRaw;
+        }
+        if (typeof hideNotificationPreviewsRaw === "boolean") {
+            privacyUpdates["privacy.hideNotificationPreviews"] = hideNotificationPreviewsRaw;
+        }
+
+        if (Object.keys(privacyUpdates).length === 0) {
+            return NextResponse.json({ error: "No valid fields provided" }, { status: 400 });
+        }
+
+        const user = await User.findByIdAndUpdate(session.user.id, { $set: privacyUpdates }, { new: true })
+            .select("name email avatar privacy")
+            .lean();
+
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, data: user });
+    } catch (error) {
+        console.error("Update privacy error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

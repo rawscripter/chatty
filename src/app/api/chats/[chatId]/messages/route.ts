@@ -7,6 +7,7 @@ import Message from "@/models/message";
 import { messageRateLimit } from "@/lib/rate-limit";
 import { pusherServer } from "@/lib/pusher";
 import PushNotifications from "@pusher/push-notifications-server";
+import User from "@/models/user";
 
 // GET /api/chats/[chatId]/messages - Get messages for a chat
 export async function GET(
@@ -154,7 +155,11 @@ export async function POST(
             return NextResponse.json({ error: "Message content is required" }, { status: 400 });
         }
 
-        if ((type === "image" || type === "gif") && !imageUrl) {
+        if (type === "image" && !imageUrl && !cloudinaryPublicId) {
+            return NextResponse.json({ error: "Image URL or cloudinaryPublicId is required" }, { status: 400 });
+        }
+
+        if (type === "gif" && !imageUrl) {
             return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
         }
 
@@ -168,8 +173,15 @@ export async function POST(
         };
 
         if (type === "image") {
-            messageData.imageUrl = imageUrl;
-            messageData.cloudinaryPublicId = cloudinaryPublicId;
+            // We prefer NOT storing a permanent URL in DB.
+            // The client should use /api/media/cloudinary-url to fetch a short-lived signed URL.
+            // We keep imageUrl for backward compatibility, but it can be omitted going forward.
+            if (imageUrl) {
+                messageData.imageUrl = imageUrl;
+            }
+            if (cloudinaryPublicId) {
+                messageData.cloudinaryPublicId = cloudinaryPublicId;
+            }
             messageData.isViewOnce = isViewOnce || false;
         }
 
@@ -190,7 +202,7 @@ export async function POST(
 
         // Create and populate message in memory (saves a round trip)
         const message = await Message.create(messageData);
-        let populatedMessage = await message.populate([{
+        const populatedMessage = await message.populate([{
             path: 'sender',
             select: 'name email avatar'
         }, {
@@ -224,7 +236,7 @@ export async function POST(
                     const userChatIds = await Chat.find({ participants: userId })
                         .select("_id")
                         .lean();
-                    const ids = userChatIds.map((c: any) => c._id);
+                    const ids = userChatIds.map((c: { _id: unknown }) => c._id);
                     if (ids.length === 0) return 0;
 
                     return Message.countDocuments({
@@ -239,11 +251,20 @@ export async function POST(
                     const userId = interest.replace(/^user-/, "");
                     const unreadTotal = await computeUnreadTotal(userId);
 
+                    const recipientPrivacy = await User.findById(userId)
+                        .select("privacy.hideNotificationPreviews")
+                        .lean();
+
+                    const hidePreviews = recipientPrivacy?.privacy?.hideNotificationPreviews !== false;
+
+                    const title = hidePreviews ? "New message" : `New Message from ${senderName}`;
+                    const body = hidePreviews ? "Open Chatty to view" : String(messagePreview);
+
                     await beamsClient.publishToInterests([interest], {
                         web: {
                             notification: {
-                                title: `New Message from ${senderName}`,
-                                body: String(messagePreview),
+                                title,
+                                body,
                                 icon: "/icons/icon-192.png",
                                 deep_link: baseUrl ? `${baseUrl}/chat/${chatId}` : undefined,
                             },
@@ -255,8 +276,8 @@ export async function POST(
                         },
                         fcm: {
                             notification: {
-                                title: `New Message from ${senderName}`,
-                                body: String(messagePreview),
+                                title,
+                                body,
                                 icon: "ic_notification",
                             },
                             data: {

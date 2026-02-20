@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchSignedCloudinaryUrl } from "@/lib/media";
+import { useChatStore } from "@/store/chat-store";
 import { motion, AnimatePresence } from "framer-motion";
 import type { IUser } from "@/types";
 import { BubbleTheme } from "@/store/chat-store";
@@ -59,7 +61,46 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onReply, onReact, onTriggerEffect, canDelete = false, variant = "emerald" }: MessageBubbleProps) {
     const { data: session } = useSession();
+    const { privacy } = useChatStore();
     const [showReactions, setShowReactions] = useState(false);
+
+    // Signed URL state (for Cloudinary assets)
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [signedUrlError, setSignedUrlError] = useState<string | null>(null);
+
+    const effectiveImageSrc = useMemo(() => {
+        // Prefer signed URL when available (for Cloudinary assets).
+        return signedUrl || message.imageUrl || null;
+    }, [signedUrl, message.imageUrl]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const run = async () => {
+            setSignedUrl(null);
+            setSignedUrlError(null);
+
+            // Only fetch signed URLs for uploaded images (Cloudinary public ids).
+            if (message.type !== "image") return;
+            if (!message.cloudinaryPublicId) return;
+
+            // View-once images should only be opened via the view-once flow.
+            if (message.isViewOnce) return;
+
+            try {
+                const url = await fetchSignedCloudinaryUrl(message.cloudinaryPublicId, 120);
+                if (!cancelled) setSignedUrl(url);
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : String(e);
+                if (!cancelled) setSignedUrlError(msg);
+            }
+        };
+
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [message.type, message.cloudinaryPublicId, message.isViewOnce]);
 
     // Helpers
     const isEmojiOnly = (text?: string) => {
@@ -71,7 +112,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
         return withoutEmojis.length === 0;
     };
 
-    const isImage = message.type === "image" && !message.isViewOnce && !!message.imageUrl;
+    const isImage = message.type === "image" && !message.isViewOnce && !!effectiveImageSrc;
     const isGif = message.type === "gif" && !!message.imageUrl;
     // Explicitly check for single heart to ensure it gets noPadding treatment even if regex fails
     const isSingleHeart = message.content?.trim() === "❤️";
@@ -171,18 +212,47 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                         type="button"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onImageClick?.(message.imageUrl!);
+                            if (!effectiveImageSrc) return;
+                            onImageClick?.(effectiveImageSrc);
                         }}
                         className="block rounded-2xl overflow-hidden"
+                        aria-label="Open image"
                     >
                         <img
-                            src={message.imageUrl}
+                            src={effectiveImageSrc || undefined}
                             alt="Shared media"
-                            className="rounded-2xl max-w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                            className={`rounded-2xl max-w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity ${privacy.intimateModeEnabled ? "blur-xl" : ""}`}
                             loading="lazy"
                             referrerPolicy="no-referrer"
+                            onMouseDown={(e) => {
+                                // Press-and-hold reveal (desktop)
+                                if (!privacy.intimateModeEnabled) return;
+                                (e.currentTarget as HTMLImageElement).classList.remove("blur-xl");
+                            }}
+                            onMouseUp={(e) => {
+                                if (!privacy.intimateModeEnabled) return;
+                                (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!privacy.intimateModeEnabled) return;
+                                (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                            }}
+                            onTouchStart={(e) => {
+                                // Press-and-hold reveal (mobile)
+                                if (!privacy.intimateModeEnabled) return;
+                                (e.currentTarget as HTMLImageElement).classList.remove("blur-xl");
+                            }}
+                            onTouchEnd={(e) => {
+                                if (!privacy.intimateModeEnabled) return;
+                                (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                            }}
                         />
                     </button>
+                    {signedUrlError && (
+                        <div className="mt-2 text-[11px] text-muted-foreground">
+                            Failed to load secure image.
+                        </div>
+                    )}
                     <div className="absolute bottom-2 right-2 bg-black/40 px-1.5 py-0.5 rounded text-[10px] text-white/90 flex items-center gap-1 backdrop-blur-sm">
                         {format(new Date(message.createdAt), "HH:mm")}
                         {isMine && (
@@ -215,9 +285,29 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             <img
                                 src={message.imageUrl}
                                 alt="Shared GIF"
-                                className="max-w-full max-h-64 object-cover"
+                                className={`max-w-full max-h-64 object-cover ${privacy.intimateModeEnabled ? "blur-xl" : ""}`}
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
+                                onMouseDown={(e) => {
+                                    if (!privacy.intimateModeEnabled) return;
+                                    (e.currentTarget as HTMLImageElement).classList.remove("blur-xl");
+                                }}
+                                onMouseUp={(e) => {
+                                    if (!privacy.intimateModeEnabled) return;
+                                    (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!privacy.intimateModeEnabled) return;
+                                    (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                                }}
+                                onTouchStart={(e) => {
+                                    if (!privacy.intimateModeEnabled) return;
+                                    (e.currentTarget as HTMLImageElement).classList.remove("blur-xl");
+                                }}
+                                onTouchEnd={(e) => {
+                                    if (!privacy.intimateModeEnabled) return;
+                                    (e.currentTarget as HTMLImageElement).classList.add("blur-xl");
+                                }}
                             />
                         </button>
                         <span className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-white backdrop-blur-sm">

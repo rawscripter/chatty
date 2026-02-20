@@ -1,9 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
 
 interface ImageViewerProps {
     src: string | null;
@@ -11,13 +10,14 @@ interface ImageViewerProps {
     onClose: () => void;
 }
 
+/**
+ * Full-screen viewer for images/GIFs.
+ *
+ * Privacy note:
+ * - We intentionally DO NOT offer an "open in new tab" / download button.
+ * - Media should be viewed inside the app (especially in Blur Mode).
+ */
 export function ImageViewer({ src, open, onClose }: ImageViewerProps) {
-    useEffect(() => {
-        if (open) {
-            console.log("ImageViewer open with src:", src);
-        }
-    }, [open, src]);
-
     if (!src) return null;
 
     return (
@@ -32,20 +32,16 @@ export function ImageViewer({ src, open, onClose }: ImageViewerProps) {
                     onClick={onClose}
                 >
                     {/* Controls */}
-                    <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-white hover:bg-white/10 rounded-full h-10 w-10"
-                            onClick={() => window.open(src, "_blank")}
-                        >
-                            <Download className="w-5 h-5" />
-                        </Button>
+                    <div
+                        className="absolute top-4 right-4 flex items-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <Button
                             variant="ghost"
                             size="icon"
                             className="text-white hover:bg-white/10 rounded-full h-10 w-10"
                             onClick={onClose}
+                            aria-label="Close"
                         >
                             <X className="w-6 h-6" />
                         </Button>

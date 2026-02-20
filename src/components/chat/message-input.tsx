@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Send, Image as ImageIcon, X, Plus, Camera, Sparkles, Zap, LayoutGrid, Smile } from "lucide-react";
+import { Send, Image as ImageIcon, X, Plus, Sparkles, Zap, LayoutGrid, Smile, Eye } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { GifPicker } from "./gif-picker";
 import data from "@emoji-mart/data";
@@ -306,10 +306,35 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                     alt="Preview"
                                     className="h-32 rounded-xl object-cover border border-border/50 shadow-md"
                                 />
+
+                                {/* Easy-access View Once toggle (only for non-GIF images) */}
+                                {imageFile && imageFile.type !== "image/gif" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsViewOnce((v) => !v)}
+                                        className={`absolute bottom-2 left-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium shadow-md border backdrop-blur-sm transition-colors
+                                            ${isViewOnce
+                                                ? "bg-amber-500/90 text-white border-amber-400/40"
+                                                : "bg-black/50 text-white border-white/10 hover:bg-black/60"
+                                            }
+                                        `}
+                                        aria-label="Toggle view once"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        View once
+                                        {isViewOnce && (
+                                            <span className="ml-1 text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded-full">
+                                                ON
+                                            </span>
+                                        )}
+                                    </button>
+                                )}
+
                                 <button
                                     type="button"
                                     onClick={clearImage}
                                     className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-md hover:scale-110 transition-transform"
+                                    aria-label="Remove image"
                                 >
                                     <X className="w-3 h-3" />
                                 </button>

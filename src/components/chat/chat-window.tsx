@@ -343,6 +343,7 @@ export function ChatWindow() {
                         item.type === message.type &&
                         item.content === message.content &&
                         item.imageUrl === message.imageUrl &&
+                        item.cloudinaryPublicId === message.cloudinaryPublicId &&
                         item.isViewOnce === message.isViewOnce &&
                         item.gifCategory === message.gifCategory
                 );
@@ -409,7 +410,7 @@ export function ChatWindow() {
         };
 
         const handleViewedOnce = (data: { messageId: string }) => {
-            updateMessage(data.messageId, { viewOnceViewed: true, imageUrl: undefined });
+            updateMessage(data.messageId, { viewOnceViewed: true });
         };
 
         const handleMessageDeleted = (data: {
@@ -532,6 +533,7 @@ export function ChatWindow() {
             content: data.content,
             type: data.type,
             imageUrl: data.imageUrl,
+            cloudinaryPublicId: data.cloudinaryPublicId,
             gifCategory: data.gifCategory,
             isViewOnce: data.isViewOnce || false,
             viewOnceViewed: false,
@@ -601,7 +603,7 @@ export function ChatWindow() {
             const data = await res.json();
 
             if (data.success) {
-                updateMessage(messageId, { viewOnceViewed: true, imageUrl: undefined });
+                updateMessage(messageId, { viewOnceViewed: true });
                 return data.data.imageUrl;
             }
         } catch (error) {

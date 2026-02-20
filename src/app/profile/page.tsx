@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Laptop, Smartphone, Trash2, Globe } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Shield, EyeOff } from "lucide-react";
 import { SessionManager } from "@/components/profile/session-manager";
 import { ThemeColorSelector } from "@/components/profile/theme-color-selector";
 import { useChatStore } from "@/store/chat-store";
@@ -35,6 +35,8 @@ export default function ProfilePage() {
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const notificationMuted = useChatStore((state) => state.notificationMuted);
     const setNotificationMuted = useChatStore((state) => state.setNotificationMuted);
+    const privacy = useChatStore((state) => state.privacy);
+    const setPrivacy = useChatStore((state) => state.setPrivacy);
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -54,6 +56,15 @@ export default function ProfilePage() {
                 if (data.success) {
                     setProfileName(data.data.name || session.user.name || "");
                     setProfileAvatar(data.data.avatar || session.user.image || "");
+
+                    // Sync privacy settings into local store (also controls message persistence behavior)
+                    if (data.data.privacy) {
+                        setPrivacy({
+                            intimateModeEnabled: !!data.data.privacy.intimateModeEnabled,
+                            hideNotificationPreviews:
+                                data.data.privacy.hideNotificationPreviews !== false,
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Profile fetch error:", error);
@@ -254,6 +265,65 @@ export default function ProfilePage() {
                             <p className="text-sm font-medium">Accent Color</p>
                             <ThemeColorSelector />
                         </div>
+                    </div>
+
+                    <Separator className="opacity-60" />
+
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-sm font-medium">Privacy</p>
+                            <p className="text-xs text-muted-foreground">
+                                Couples mode: reduce leakage on shared devices.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                            <Button
+                                variant={privacy.intimateModeEnabled ? "default" : "ghost"}
+                                onClick={async () => {
+                                    const next = !privacy.intimateModeEnabled;
+                                    setPrivacy({ intimateModeEnabled: next });
+                                    try {
+                                        await fetch("/api/users/me", {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ intimateModeEnabled: next }),
+                                        });
+                                    } catch (e) {
+                                        console.error("Failed to update Blur mode", e);
+                                    }
+                                }}
+                                className="gap-2 justify-start"
+                            >
+                                <Shield className="w-4 h-4" />
+                                Blur Mode {privacy.intimateModeEnabled ? "On" : "Off"}
+                            </Button>
+
+                            <Button
+                                variant={privacy.hideNotificationPreviews ? "default" : "ghost"}
+                                onClick={async () => {
+                                    const next = !privacy.hideNotificationPreviews;
+                                    setPrivacy({ hideNotificationPreviews: next });
+                                    try {
+                                        await fetch("/api/users/me", {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ hideNotificationPreviews: next }),
+                                        });
+                                    } catch (e) {
+                                        console.error("Failed to update notification privacy", e);
+                                    }
+                                }}
+                                className="gap-2 justify-start"
+                            >
+                                <EyeOff className="w-4 h-4" />
+                                Hide notification previews {privacy.hideNotificationPreviews ? "On" : "Off"}
+                            </Button>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                            Note: Blur Mode also stops saving message history to this browser’s local storage.
+                        </p>
                     </div>
 
                     <Separator className="opacity-60" />

@@ -1,6 +1,11 @@
 import { Types } from "mongoose";
 
 // ─── User ───────────────────────────────────────────
+export interface IUserPrivacySettings {
+  intimateModeEnabled: boolean;
+  hideNotificationPreviews: boolean;
+}
+
 export interface IUser {
   _id: string;
   name: string;
@@ -9,6 +14,7 @@ export interface IUser {
   avatar?: string;
   isOnline: boolean;
   lastSeen: Date;
+  privacy?: IUserPrivacySettings;
   createdAt: Date;
   updatedAt: Date;
 }
