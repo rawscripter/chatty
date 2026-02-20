@@ -51,9 +51,19 @@ export async function POST(req: Request) {
         // Send Push Notification via Beams if it's an incoming call
         if (eventName === "client-incoming-call") {
             try {
+                const instanceId = process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID;
+                const secretKey = process.env.PUSHER_BEAMS_SECRET_KEY;
+
+                // If Beams isn't configured, skip push notifications (don't fail the API request).
+                if (!instanceId || !secretKey) {
+                    console.warn("[Pusher Beams] Missing instanceId/secretKey; skipping push notification");
+                    // continue without push notification
+                    return;
+                }
+
                 const beamsClient = new PushNotifications({
-                    instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID,
-                    secretKey: process.env.PUSHER_BEAMS_SECRET_KEY,
+                    instanceId,
+                    secretKey,
                 });
 
                 // The channelName is `private-user-${recipientId}`

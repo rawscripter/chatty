@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { IChat, IMessage } from "@/types";
 
 export type BubbleTheme = "emerald" | "blue" | "rose" | "amber";
+export type UiStyle = "default" | "glass";
 
 interface TypingUser {
     userId: string;
@@ -65,6 +66,10 @@ interface ChatStore {
     accentColor: string;
     setAccentColor: (color: string) => void;
 
+    // UI Style
+    uiStyle: UiStyle;
+    setUiStyle: (style: UiStyle) => void;
+
     // Video Call
     activeCall: ActiveCall | null;
     incomingCall: IncomingCall | null;
@@ -89,6 +94,12 @@ const initialTheme =
     (typeof window !== "undefined" &&
         (window.localStorage.getItem(themeKey) as BubbleTheme)) ||
     "emerald";
+
+const uiStyleKey = "chatty:ui-style";
+const initialUiStyle: UiStyle =
+    (typeof window !== "undefined" &&
+        (window.localStorage.getItem(uiStyleKey) as UiStyle)) ||
+    "default";
 
 export const useChatStore = create<ChatStore>((set) => ({
     // Chats
@@ -223,13 +234,27 @@ export const useChatStore = create<ChatStore>((set) => ({
 
                 // Update the document class for global CSS variables
                 document.documentElement.classList.remove(
-                    'theme-rose', 'theme-blue', 'theme-green', 'theme-orange', 'theme-monochrome'
+                    "theme-rose",
+                    "theme-blue",
+                    "theme-green",
+                    "theme-orange",
+                    "theme-monochrome"
                 );
-                if (color !== 'default') {
+                if (color !== "default") {
                     document.documentElement.classList.add(`theme-${color}`);
                 }
             }
             return { accentColor: color };
+        }),
+
+    // UI Style
+    uiStyle: initialUiStyle,
+    setUiStyle: (style: UiStyle) =>
+        set(() => {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(uiStyleKey, style);
+            }
+            return { uiStyle: style };
         }),
 
     // Video Call
