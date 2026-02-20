@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { mobileAuth } from "@/lib/mobile-auth";
 
 const fallbackIceServers = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -27,7 +29,15 @@ const fallbackIceServers = [
     },
 ];
 
-export async function GET() {
+export async function GET(req: Request) {
+    // Require auth (web session) OR mobile bearer auth.
+    const session = await auth();
+    const mobileUser = session?.user?.id ? null : await mobileAuth(req);
+
+    if (!session?.user?.id && !mobileUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const apiKey = process.env.METERED_SECRET_KEY;
         const domain = process.env.METERED_DOMAIN;
@@ -39,7 +49,9 @@ export async function GET() {
 
         const response = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`);
         if (!response.ok) {
-            console.warn(`Metered TURN credential request failed (${response.status}), using fallback ICE servers`);
+            console.warn(
+                `Metered TURN credential request failed (${response.status}), using fallback ICE servers`
+            );
             return NextResponse.json(fallbackIceServers);
         }
 

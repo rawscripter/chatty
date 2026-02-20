@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import { auth } from "@/lib/auth";
+import dbConnect from "@/lib/db";
+import Chat from "@/models/chat";
+import PushNotifications from "@pusher/push-notifications-server";
+
+function extractChatId(channelName: string): string | null {
+    for (const prefix of ["chat-", "private-chat-", "presence-chat-"]) {
+        if (channelName.startsWith(prefix)) return channelName.slice(prefix.length);
+    }
+    return null;
+}
 
 export async function POST(req: Request) {
     try {
@@ -9,50 +19,61 @@ export async function POST(req: Request) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const body = await req.json();
-        const { channelName, eventName, data } = body;
+        const body = await req.json().catch(() => null);
+        const channelName = typeof body?.channelName === "string" ? body.channelName : "";
+        const eventName = typeof body?.eventName === "string" ? body.eventName : "";
+        const data = body?.data;
 
         if (!channelName || !eventName || !data) {
             return new NextResponse("Missing required fields", { status: 400 });
         }
 
-        // Security check: Ensure the user is allowed to publish to this channel
-        // For simple peer-to-peer, we might check if they are a participant in the chat
-        // (channelName is usually chat-[chatId])
-        // For now, we'll assume basic authentication is enough for the prototype, 
-        // but in production you'd verify chat membership here.
+        // Authorization: private-user-<id> only by that user.
+        if (channelName.startsWith("private-user-")) {
+            const targetUserId = channelName.slice("private-user-".length);
+            if (targetUserId !== String(session.user.id)) {
+                return new NextResponse("Forbidden", { status: 403 });
+            }
+        }
+
+        // Authorization: chat-* only for participants.
+        const chatId = extractChatId(channelName);
+        if (chatId) {
+            await dbConnect();
+            const chat = await Chat.findOne({ _id: chatId, participants: session.user.id }).select("_id").lean();
+            if (!chat) {
+                return new NextResponse("Forbidden", { status: 403 });
+            }
+        }
 
         await pusherServer.trigger(channelName, eventName, data);
 
         // Send Push Notification via Beams if it's an incoming call
-        if (eventName === 'client-incoming-call') {
+        if (eventName === "client-incoming-call") {
             try {
-                const PushNotifications = require('@pusher/push-notifications-server');
-
                 const beamsClient = new PushNotifications({
                     instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID,
                     secretKey: process.env.PUSHER_BEAMS_SECRET_KEY,
                 });
 
                 // The channelName is `private-user-${recipientId}`
-                // We format it to match the interest name `user-${recipientId}`
-                // Extract recipientId from channelName
-                const recipientId = channelName.replace('private-user-', '');
+                const recipientId = channelName.replace("private-user-", "");
+
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
 
                 await beamsClient.publishToInterests([`user-${recipientId}`], {
                     web: {
                         notification: {
-                            title: `Incoming Video Call`,
-                            body: `${data.userName || 'Someone'} is calling you...`,
-                            icon: data.userAvatar || '/vercel.svg', // Fallback icon
-                            deep_link: `https://${req.headers.get('host')}/chat/${data.chatId}`, // Open the chat
+                            title: "Incoming Video Call",
+                            body: `${data.userName || "Someone"} is calling you...`,
+                            icon: data.userAvatar || "/vercel.svg",
+                            deep_link: baseUrl ? `${baseUrl}/chat/${data.chatId}` : undefined,
                         },
                     },
                 });
                 console.log(`[Pusher Beams] Sent push notification to user-${recipientId}`);
             } catch (pushError) {
                 console.error("[Pusher Beams] Failed to send push:", pushError);
-                // Don't fail the request if push fails, it's a secondary notification
             }
         }
 

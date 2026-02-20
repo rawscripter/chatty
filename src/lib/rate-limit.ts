@@ -1,14 +1,25 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+type LimitResult = { success: boolean; limit: number; remaining: number; reset: number };
+
 function createRateLimiter(requests: number, window: string) {
     const url = process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-    if (!url || !token || url === "https://your-redis.upstash.io") {
-        // Return a mock rate limiter that always allows
+    const missingConfig = !url || !token || url === "https://your-redis.upstash.io";
+
+    if (missingConfig) {
+        // Development convenience, but **fail closed** in non-dev to avoid silently disabling protection.
+        const shouldFailClosed = process.env.NODE_ENV && process.env.NODE_ENV !== "development";
+
         return {
-            limit: async () => ({ success: true, limit: requests, remaining: requests, reset: 0 }),
+            limit: async (): Promise<LimitResult> => {
+                if (shouldFailClosed) {
+                    return { success: false, limit: requests, remaining: 0, reset: 0 };
+                }
+                return { success: true, limit: requests, remaining: requests, reset: 0 };
+            },
         };
     }
 
