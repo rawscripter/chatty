@@ -27,6 +27,10 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
     const [items, setItems] = useState<GifItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [adultLocked, setAdultLocked] = useState(false);
+    const [adultOtp, setAdultOtp] = useState("");
+    const [unlockingAdult, setUnlockingAdult] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -70,6 +74,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
         const loadGifs = async () => {
             setLoading(true);
             setError(null);
+            setAdultLocked(false);
             try {
                 // For Giphy, we use the offset state.
                 // For Adult (random), we effectively fetch a new random batch each time.
@@ -89,6 +94,12 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                 const data = await res.json();
 
                 if (!res.ok || !data.success) {
+                    if (data?.error === "ADULT_LOCKED" && category === "adult") {
+                        setAdultLocked(true);
+                        // Don’t show as a generic error; show unlock UI.
+                        return;
+                    }
+
                     // Only set error if it's the first load, otherwise just stop loading more
                     if (offset === 0) {
                         setError(data.error || "Failed to load GIFs");
@@ -115,7 +126,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
 
         loadGifs();
         return () => controller.abort();
-    }, [open, category, offset, debouncedQuery]);
+    }, [open, category, offset, debouncedQuery, refreshKey]);
 
     const handleCategoryChange = (newCategory: GifCategory) => {
         setCategory(newCategory);
@@ -128,17 +139,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
         setItems([]);
         setOffset(0);
         setHasMore(true);
-        // Force a re-fetch by toggling offset to 0 (already 0, effectively reset)
-        // Check: if offset is 0 and we set 0, effect might not run if dependency is just offset.
-        // Actually, setting items to empty is enough visual reset, but we need to trigger effect.
-        // We can add a refresh timestamp or just use the fact that we cleared items.
-        // Let's add a refresh trigger key if needed, but simply resetting offset to 0 should work if we ensure effect runs.
-        // If offset was ALREADY 0, this wouldn't trigger effect.
-        // We'll use a separate refresh key for the effect dependency.
     };
-
-    // We need a refresh key to force reload even if offset is 0
-    const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
         // Triggered by refresh key
@@ -148,13 +149,6 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
             setHasMore(true);
         }
     }, [refreshKey]);
-
-    // Update the main effect to depend on refreshKey too? 
-    // Actually, if we setOffset(0), we want to reload. 
-    // If offset is already 0, we can use refreshKey to differentiate.
-    // Let's simplify: just put the fetch logic in a function and call it?
-    // No, useEffect is cleaner for cancellation.
-    // Let's add refreshKey to the main dependency array.
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -246,7 +240,57 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                     )}
                 </div>
 
-                {error ? (
+                {adultLocked ? (
+                    <div className="text-sm bg-muted/30 rounded-lg p-4 space-y-3 border border-border/50">
+                        <div className="font-medium">Adult GIFs are locked for this session.</div>
+                        <div className="text-muted-foreground text-xs">
+                            Enter the one-time password to unlock adult GIFs.
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                value={adultOtp}
+                                onChange={(e) => setAdultOtp(e.target.value)}
+                                placeholder="OTP"
+                                className="h-10 rounded-full bg-background/40"
+                            />
+                            <Button
+                                type="button"
+                                disabled={unlockingAdult || adultOtp.trim().length === 0}
+                                onClick={async () => {
+                                    setUnlockingAdult(true);
+                                    try {
+                                        const res = await fetch("/api/adult/unlock", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ otp: adultOtp.trim() }),
+                                        });
+                                        const data = await res.json().catch(() => ({}));
+                                        if (!res.ok || !data.ok) {
+                                            setError("Invalid OTP");
+                                            return;
+                                        }
+
+                                        // Unlocked; trigger reload
+                                        setAdultLocked(false);
+                                        setError(null);
+                                        setItems([]);
+                                        setOffset(0);
+                                        setHasMore(true);
+                                        setRefreshKey(k => k + 1);
+                                    } finally {
+                                        setUnlockingAdult(false);
+                                    }
+                                }}
+                                className="rounded-full"
+                            >
+                                {unlockingAdult ? "Unlocking…" : "Unlock"}
+                            </Button>
+                        </div>
+                        {error && (
+                            <div className="text-xs text-destructive">{error}</div>
+                        )}
+                    </div>
+                ) : error ? (
                     <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
                         {error}
                     </div>

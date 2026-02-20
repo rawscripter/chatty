@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "chatty": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "cd /Users/shuvo/Desktop/chatty-and-app/chatty && npm run -s mcp:chatty"
+      ],
+      "description": "Local Chatty MCP (stdio)",
+      "env": {
+        "CHATTY_MCP_USER_ID": "698b2bb990f1d6011a472938",
+        "MONGODB_URI": "mongodb+srv://shuvogoswamii_db_user:f5zphzvwXdSZFSES@cluster0.d0mn1q8.mongodb.net/chatty?retryWrites=true&w=majority"
+      }
+    }
+  },
+  "imports": []
+}

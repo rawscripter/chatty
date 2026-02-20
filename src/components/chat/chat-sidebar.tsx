@@ -102,15 +102,13 @@ export function ChatSidebar() {
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-sm">
-                            <MessageSquare className="w-5 h-5 text-primary-foreground" />
+                            <img src="/icons/icon-192.png" className="rounded" alt="logo" />
+                            {/* <MessageSquare className="w-5 h-5 text-primary-foreground" /> */}
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-sidebar-foreground tracking-tight">
                                 Chatty
                             </h1>
-                            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                                Workspace
-                            </p>
                         </div>
                     </div>
                     <Button

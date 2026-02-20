@@ -4,6 +4,8 @@ import { gifRateLimit } from "@/lib/rate-limit";
 import fs from "fs";
 import path from "path";
 
+const ADULT_COOKIE_NAME = "adult_gifs_unlocked";
+
 const categoryQueries: Record<"kissing" | "hug" | "romance" | "pinch" | "bite" | "slap", string> = {
     kissing: "kissing",
     hug: "hug",
@@ -49,6 +51,13 @@ export async function GET(req: NextRequest) {
 
         // Handle adult category using local JSON
         if (category === "adult") {
+            // Same gate as web: relies on cookie-based unlock. If your mobile client
+            // doesn’t persist cookies, add a dedicated mobile unlock flow later.
+            const unlocked = req.cookies.get(ADULT_COOKIE_NAME)?.value === "1";
+            if (!unlocked) {
+                return NextResponse.json({ success: false, error: "ADULT_LOCKED" }, { status: 403 });
+            }
+
             try {
                 const filePath = path.join(process.cwd(), "src", "data", "wetgif.popular.by-type.v2.json");
 
