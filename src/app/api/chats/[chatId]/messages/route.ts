@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
@@ -5,6 +6,7 @@ import Chat from "@/models/chat";
 import Message from "@/models/message";
 import { messageRateLimit } from "@/lib/rate-limit";
 import { pusherServer } from "@/lib/pusher";
+import PushNotifications from "@pusher/push-notifications-server";
 
 // GET /api/chats/[chatId]/messages - Get messages for a chat
 export async function GET(
@@ -203,6 +205,49 @@ export async function POST(
 
         // Trigger Pusher event
         await pusherServer.trigger(`chat-${chatId}`, "message:new", populatedMessage);
+
+        // Send Push Notification via Beams to all OTHER participants in the chat
+        try {
+            const beamsClient = new PushNotifications({
+                instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID!,
+                secretKey: process.env.PUSHER_BEAMS_SECRET_KEY!,
+            });
+
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
+            const senderName = populatedMessage?.sender && typeof populatedMessage.sender === 'object' && 'name' in populatedMessage.sender ? populatedMessage.sender.name : "Someone";
+            const messagePreview = type === "text" ? content : `Sent a ${type}`;
+
+            // Get all participants EXCEPT the sender
+            const recipients = chat.participants
+                .filter((p: mongoose.Types.ObjectId) => p.toString() !== session.user.id.toString())
+                .map((p: mongoose.Types.ObjectId) => `user-${p.toString()}`);
+
+            if (recipients.length > 0) {
+                await beamsClient.publishToInterests(recipients, {
+                    web: {
+                        notification: {
+                            title: `New Message from ${senderName}`,
+                            body: String(messagePreview),
+                            icon: "/vercel.svg",
+                            deep_link: baseUrl ? `${baseUrl}/chat/${chatId}` : undefined,
+                        },
+                    },
+                    fcm: {
+                        notification: {
+                            title: `New Message from ${senderName}`,
+                            body: String(messagePreview),
+                            icon: "ic_notification",
+                        },
+                        data: {
+                            chatId: chatId,
+                            type: "new_message"
+                        }
+                    }
+                });
+            }
+        } catch (pushError) {
+            console.error("[Pusher Beams] Failed to send push for new message:", pushError);
+        }
 
         return NextResponse.json({ success: true, data: populatedMessage }, { status: 201 });
     } catch (error) {
