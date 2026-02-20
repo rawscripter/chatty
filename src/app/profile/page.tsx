@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Laptop, Smartphone, Trash2, Globe } from "lucide-react";
 import { SessionManager } from "@/components/profile/session-manager";
+import { ThemeColorSelector } from "@/components/profile/theme-color-selector";
 import { useChatStore } from "@/store/chat-store";
 
 function getInitials(name: string): string {
@@ -221,7 +222,7 @@ export default function ProfilePage() {
                     <Separator className="opacity-60" />
 
                     <div className="space-y-3">
-                        <p className="text-sm font-medium">Theme</p>
+                        <p className="text-sm font-medium">Appearance</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <Button
                                 variant={theme === "light" ? "default" : "ghost"}
@@ -247,6 +248,11 @@ export default function ProfilePage() {
                                 <Monitor className="w-4 h-4" />
                                 System
                             </Button>
+                        </div>
+
+                        <div className="pt-4 space-y-2">
+                            <p className="text-sm font-medium">Accent Color</p>
+                            <ThemeColorSelector />
                         </div>
                     </div>
 

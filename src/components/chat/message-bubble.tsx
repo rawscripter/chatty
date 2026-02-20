@@ -64,9 +64,11 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
     // Helpers
     const isEmojiOnly = (text?: string) => {
         if (!text) return false;
-        // Include Extended_Pictographic, Emoji_Presentation, ZWJ, and VS16
-        const emojiRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\u200d|\ufe0f|\s)+$/u;
-        return emojiRegex.test(text) && text.trim().length > 0;
+        const cleanText = text.trim();
+        if (cleanText.length === 0 || cleanText.length > 20) return false;
+        // Strip out all emojis, zero width joiners, and variation selectors
+        const withoutEmojis = cleanText.replace(/[\p{Emoji}\p{Extended_Pictographic}\u200D\uFE0F\s]/gu, '');
+        return withoutEmojis.length === 0;
     };
 
     const isImage = message.type === "image" && !message.isViewOnce && !!message.imageUrl;
@@ -241,10 +243,10 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
         // Text content
         if (message.content) {
             return (
-                <div className={isEmoji ? "px-1" : ""}>
+                <div className={isEmoji ? "px-1 py-1" : ""}>
                     <p
                         onClick={() => isSingleHeart && onTriggerEffect?.("hearts")}
-                        className={`whitespace-pre-wrap break-words ${isEmoji ? "" : "text-sm font-medium leading-relaxed"} ${isSingleHeart ? "text-8xl leading-none cursor-pointer hover:scale-110 active:scale-95 transition-transform duration-200 inline-block animate-pulse filter drop-shadow-sm" : isEmoji ? "text-4xl leading-none" : ""}`}
+                        className={`whitespace-pre-wrap break-words ${isEmoji ? "" : "text-[15px] leading-relaxed tracking-tight"} ${isSingleHeart ? "text-8xl leading-none cursor-pointer hover:scale-110 active:scale-95 transition-transform duration-200 inline-block animate-pulse filter drop-shadow-sm" : isEmoji ? "text-4xl leading-none" : ""}`}
                     >
                         {message.content}
                     </p>
@@ -346,11 +348,11 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
 
 
                     <div
-                        className={`relative shadow-sm transition-all duration-200 ${noPadding ? "p-0 bg-transparent" : "px-5 py-3 rounded-[26px]"
+                        className={`relative transition-all duration-200 ${noPadding ? "p-0 bg-transparent shadow-none" : "shadow-sm px-5 py-3 rounded-[24px]"
                             } ${!noPadding && isMine
-                                ? "bg-primary text-primary-foreground rounded-br-md shadow-md"
+                                ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-[6px] border border-white/10"
                                 : !noPadding
-                                    ? "bg-muted/40 text-foreground/90 rounded-bl-md border border-border/40 shadow-sm"
+                                    ? "bg-card text-card-foreground rounded-bl-[6px] border border-border/40"
                                     : ""
                             }`}
                     >

@@ -101,8 +101,8 @@ export function ChatSidebar() {
             <div className="px-4 pt-5 pb-3 space-y-4">
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <MessageSquare className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-sm">
+                            <MessageSquare className="w-5 h-5 text-primary-foreground" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-sidebar-foreground tracking-tight">
@@ -129,7 +129,7 @@ export function ChatSidebar() {
                         placeholder="Search chats..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10 h-11 rounded-2xl bg-sidebar-accent/50 border-sidebar-border/50 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/50 transition-all font-medium placeholder:text-muted-foreground/50"
+                        className="pl-10 h-10 rounded-[14px] bg-sidebar-accent/50 border-none focus-visible:ring-0 focus-visible:bg-sidebar-accent/80 transition-all font-medium placeholder:text-muted-foreground/60 text-[14px]"
                     />
                 </div>
             </div>
@@ -167,19 +167,18 @@ export function ChatSidebar() {
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.03, duration: 0.2 }}
                                         onClick={() => setActiveChat(chat)}
-                                        className={`w-full flex items-center gap-3.5 p-3 transition-all duration-200 group relative
+                                        className={`w-full flex items-center gap-3.5 p-3 transition-all duration-200 group relative rounded-2xl outline-none
                                             ${isActive
-                                                ? "bg-sidebar-accent/80 shadow-sm z-10"
-                                                : "hover:bg-sidebar-accent/50 hover:translate-x-1"
+                                                ? "bg-primary/[0.08] dark:bg-primary/[0.05] z-10"
+                                                : "hover:bg-sidebar-accent/50"
                                             }
-                                            ${isActive ? "rounded-xl mx-2" : "rounded-xl mx-2"}
                                         `}
                                     >
                                         {/* Active Indicator (Left Bar) - Optional/Subtle */}
                                         {isActive && (
                                             <motion.div
                                                 layoutId="activeChatIndicator"
-                                                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-lg"
+                                                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-r-full shadow-sm"
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
@@ -259,10 +258,10 @@ export function ChatSidebar() {
             </ScrollArea>
 
             {/* Footer User Profile */}
-            <div className="p-4 mt-auto bg-sidebar-background/80 backdrop-blur-sm border-t border-sidebar-border/40">
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-sidebar-accent/30 hover:bg-sidebar-accent/60 transition-all duration-200 cursor-pointer group border border-transparent hover:border-sidebar-border/50">
-                    <Avatar className="w-10 h-10 border border-sidebar-border/50">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-xs font-bold">
+            <div className="p-3 mt-auto bg-sidebar-background/80 backdrop-blur-sm border-t border-sidebar-border/40">
+                <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-sidebar-accent/50 transition-colors duration-200 cursor-pointer group">
+                    <Avatar className="w-9 h-9 border border-sidebar-border/50 shadow-sm">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                             {getInitials(session?.user?.name || "User")}
                         </AvatarFallback>
                     </Avatar>

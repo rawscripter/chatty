@@ -611,7 +611,8 @@ export function ChatWindow() {
     const chatTyping = typingUsers.get(activeChat._id) || [];
 
     return (
-        <div className="flex flex-col h-full w-full bg-background relative">
+        <div className="flex flex-col h-full w-full bg-background relative selection:bg-primary/20">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/[0.03] via-background to-background pointer-events-none" />
             <ChatEffects effect={currentEffect} onComplete={() => setCurrentEffect(null)} />
             {/* Header */}
             <ChatHeader chat={activeChat} />

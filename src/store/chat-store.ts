@@ -61,6 +61,10 @@ interface ChatStore {
     fontFamily: string;
     setFontFamily: (font: string) => void;
 
+    // Accent Color
+    accentColor: string;
+    setAccentColor: (color: string) => void;
+
     // Video Call
     activeCall: ActiveCall | null;
     incomingCall: IncomingCall | null;
@@ -208,6 +212,24 @@ export const useChatStore = create<ChatStore>((set) => ({
                 window.localStorage.setItem("chatty:font-family", font);
             }
             return { fontFamily: font };
+        }),
+
+    // Accent Color
+    accentColor: (typeof window !== "undefined" && window.localStorage.getItem("chatty:accent-color")) || "default",
+    setAccentColor: (color: string) =>
+        set(() => {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("chatty:accent-color", color);
+
+                // Update the document class for global CSS variables
+                document.documentElement.classList.remove(
+                    'theme-rose', 'theme-blue', 'theme-green', 'theme-orange', 'theme-monochrome'
+                );
+                if (color !== 'default') {
+                    document.documentElement.classList.add(`theme-${color}`);
+                }
+            }
+            return { accentColor: color };
         }),
 
     // Video Call

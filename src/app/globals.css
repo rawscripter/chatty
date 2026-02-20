@@ -136,6 +136,64 @@
   --sidebar-ring: oklch(0.65 0.22 260);
 }
 
+/* 
+  Theme Colors
+  These classes override the default primary colors.
+*/
+.theme-rose {
+  --primary: oklch(0.6 0.22 15);
+  --primary-foreground: oklch(0.98 0.01 15);
+  --ring: oklch(0.6 0.22 15);
+  --sidebar-primary: oklch(0.6 0.22 15);
+  --sidebar-primary-foreground: oklch(0.98 0.01 15);
+  --sidebar-ring: oklch(0.6 0.22 15);
+}
+
+.theme-blue {
+  --primary: oklch(0.6 0.2 240);
+  --primary-foreground: oklch(0.98 0.01 240);
+  --ring: oklch(0.6 0.2 240);
+  --sidebar-primary: oklch(0.6 0.2 240);
+  --sidebar-primary-foreground: oklch(0.98 0.01 240);
+  --sidebar-ring: oklch(0.6 0.2 240);
+}
+
+.theme-green {
+  --primary: oklch(0.65 0.2 145);
+  --primary-foreground: oklch(0.98 0.01 145);
+  --ring: oklch(0.65 0.2 145);
+  --sidebar-primary: oklch(0.65 0.2 145);
+  --sidebar-primary-foreground: oklch(0.98 0.01 145);
+  --sidebar-ring: oklch(0.65 0.2 145);
+}
+
+.theme-orange {
+  --primary: oklch(0.65 0.2 45);
+  --primary-foreground: oklch(0.1 0.05 45);
+  --ring: oklch(0.65 0.2 45);
+  --sidebar-primary: oklch(0.65 0.2 45);
+  --sidebar-primary-foreground: oklch(0.1 0.05 45);
+  --sidebar-ring: oklch(0.65 0.2 45);
+}
+
+.theme-monochrome {
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.2 0 0);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-ring: oklch(0.2 0 0);
+}
+
+.dark .theme-monochrome {
+  --primary: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.1 0 0);
+  --ring: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.98 0 0);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-ring: oklch(0.98 0 0);
+}
+
 @layer base {
   * {
     @apply border-border;

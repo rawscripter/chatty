@@ -222,9 +222,9 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
     return (
         <div className="p-4 bg-background z-10">
             <div className={`
-                relative flex flex-col transition-all duration-200
-                bg-secondary/50 backdrop-blur-sm rounded-[24px] border border-border/50 shadow-sm
-                focus-within:shadow-md focus-within:bg-secondary/80 focus-within:border-primary/20
+                relative flex flex-col transition-all duration-300
+                bg-background/80 backdrop-blur-xl rounded-[24px] border border-border/40 shadow-sm
+                focus-within:shadow-md focus-within:bg-background focus-within:border-primary/30
                 ${message.length > 50 ? 'rounded-[28px]' : ''}
             `}>
                 {/* Reply Preview */}
@@ -515,7 +515,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 className={`
                                     h-10 w-10 rounded-full transition-all duration-300 shadow-sm
                                     ${message.trim() || imageFile
-                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 hover:shadow-md'
+                                        ? 'bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground hover:scale-105 hover:shadow-md'
                                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                     }
                                 `}

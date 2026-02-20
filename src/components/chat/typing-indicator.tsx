@@ -27,7 +27,7 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
                 {[0, 1, 2].map((i) => (
                     <motion.div
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                        className="w-1.5 h-1.5 rounded-full bg-primary"
                         animate={{ y: [0, -4, 0] }}
                         transition={{
                             duration: 0.6,

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AccentColorProvider } from "@/components/providers/accent-color-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PusherProvider } from "@/components/providers/pusher-provider";
 import { FontProvider } from "@/components/providers/font-provider";
@@ -40,8 +41,10 @@ export default function RootLayout({
             <PusherProvider>
               <TooltipProvider>
                 <FontProvider>
-                  {children}
-                  <Toaster richColors position="top-center" />
+                  <AccentColorProvider>
+                    {children}
+                    <Toaster richColors position="top-center" />
+                  </AccentColorProvider>
                 </FontProvider>
               </TooltipProvider>
             </PusherProvider>
