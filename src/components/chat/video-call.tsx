@@ -20,37 +20,97 @@ export function VideoCall() {
     const [isVideoPaused, setIsVideoPaused] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [isStealthMode, setIsStealthMode] = useState(false);
+    const [remoteVideoUnavailable, setRemoteVideoUnavailable] = useState(false);
+    const [isRemoteVideoPlaying, setIsRemoteVideoPlaying] = useState(false);
     const streamRef = useRef<MediaStream | null>(null);
-
-    // Use callback refs to handle video elements dynamically
-    const setLocalVideoRef = useCallback((node: HTMLVideoElement | null) => {
-        if (node && stream) {
-            node.srcObject = stream;
-            node.play().catch(e => console.error("Error playing local video:", e));
-        }
-        localVideoRef.current = node;
-    }, [stream]);
-
-    const setRemoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
-        if (node && remoteStream) {
-            node.srcObject = remoteStream;
-            node.play().catch(e => console.error("Error playing remote video:", e));
-
-            // Log track status
-            const vTracks = remoteStream.getVideoTracks();
-            if (vTracks.length > 0) {
-                console.log(`[VideoCall] Remote Video Track mounted: enabled=${vTracks[0].enabled}, muted=${vTracks[0].muted}, readyState=${vTracks[0].readyState}`);
-            }
-        }
-        remoteVideoRef.current = node;
-    }, [remoteStream]);
-
-    // Keep refs for internal logic usage (like cleaning up srcObject if needed, though usually automatic)
     const localVideoRef = useRef<HTMLVideoElement | null>(null);
     const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
     const connectionRef = useRef<SimplePeerInstance | null>(null);
     const isAcceptingRef = useRef(false);
     const isInitializingRef = useRef(false);
+
+    const playVideoElement = useCallback((node: HTMLVideoElement, label: "local" | "remote") => {
+        const tryPlay = () => {
+            node.play().catch((error) => {
+                console.warn(`[VideoCall] Could not autoplay ${label} video:`, error);
+            });
+        };
+
+        if (node.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            tryPlay();
+            return;
+        }
+
+        const onLoadedMetadata = () => {
+            tryPlay();
+        };
+        node.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+    }, []);
+
+    const attachStreamToVideo = useCallback((
+        node: HTMLVideoElement | null,
+        mediaStream: MediaStream | null,
+        label: "local" | "remote",
+        muted: boolean
+    ) => {
+        if (!node || !mediaStream) return;
+        if (node.srcObject !== mediaStream) {
+            node.srcObject = mediaStream;
+        }
+        node.muted = muted;
+        playVideoElement(node, label);
+    }, [playVideoElement]);
+
+    // Use callback refs to handle video elements dynamically
+    const setLocalVideoRef = useCallback((node: HTMLVideoElement | null) => {
+        localVideoRef.current = node;
+        attachStreamToVideo(node, stream, "local", true);
+    }, [stream, attachStreamToVideo]);
+
+    const setRemoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
+        remoteVideoRef.current = node;
+        attachStreamToVideo(node, remoteStream, "remote", true);
+
+        if (node && remoteStream) {
+            const vTracks = remoteStream.getVideoTracks();
+            if (vTracks.length > 0) {
+                console.log(`[VideoCall] Remote Video Track mounted: enabled=${vTracks[0].enabled}, muted=${vTracks[0].muted}, readyState=${vTracks[0].readyState}`);
+            }
+        }
+    }, [remoteStream, attachStreamToVideo]);
+
+    useEffect(() => {
+        setIsRemoteVideoPlaying(false);
+        if (!remoteStream) {
+            setRemoteVideoUnavailable(false);
+            return;
+        }
+
+        const remoteVideoTrack = remoteStream.getVideoTracks()[0];
+        if (!remoteVideoTrack) {
+            setRemoteVideoUnavailable(true);
+            return;
+        }
+
+        const updateRemoteVideoStatus = () => {
+            const unavailable =
+                !remoteVideoTrack.enabled ||
+                remoteVideoTrack.muted ||
+                remoteVideoTrack.readyState !== "live";
+            setRemoteVideoUnavailable(unavailable);
+        };
+
+        updateRemoteVideoStatus();
+        remoteVideoTrack.addEventListener("mute", updateRemoteVideoStatus);
+        remoteVideoTrack.addEventListener("unmute", updateRemoteVideoStatus);
+        remoteVideoTrack.addEventListener("ended", updateRemoteVideoStatus);
+
+        return () => {
+            remoteVideoTrack.removeEventListener("mute", updateRemoteVideoStatus);
+            remoteVideoTrack.removeEventListener("unmute", updateRemoteVideoStatus);
+            remoteVideoTrack.removeEventListener("ended", updateRemoteVideoStatus);
+        };
+    }, [remoteStream]);
 
 
 
@@ -74,6 +134,8 @@ export function VideoCall() {
         streamRef.current = null;
         setStream(null);
         setRemoteStream(null);
+        setRemoteVideoUnavailable(false);
+        setIsRemoteVideoPlaying(false);
         if (localVideoRef.current) {
             localVideoRef.current.srcObject = null;
         }
@@ -119,10 +181,7 @@ export function VideoCall() {
             if (isMounted.current) {
                 streamRef.current = currentStream;
                 setStream(currentStream);
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = currentStream;
-                    localVideoRef.current.play().catch(e => console.error("Error playing local video:", e));
-                }
+                attachStreamToVideo(localVideoRef.current, currentStream, "local", true);
             } else {
                 // If unmounted during stream init, stop tracks immediately
                 currentStream.getTracks().forEach(track => track.stop());
@@ -151,7 +210,7 @@ export function VideoCall() {
             endCall();
             return null;
         }
-    }, [endCall]);
+    }, [endCall, attachStreamToVideo]);
 
     // Refs to track state without triggering re-renders in effects/callbacks
     const activeCallRef = useRef(activeCall);
@@ -245,10 +304,11 @@ export function VideoCall() {
 
         const peer = new SimplePeer({
             initiator: false,
-            trickle: true,
+            trickle: false,
             stream: myStream,
             config: {
-                iceServers: iceServers
+                iceServers: iceServers,
+                iceCandidatePoolSize: 10
             }
         });
 
@@ -273,10 +333,7 @@ export function VideoCall() {
         peer.on("stream", (currentRemoteStream) => {
             console.log("[VideoCall] Received remote stream (Callee)");
             setRemoteStream(currentRemoteStream);
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = currentRemoteStream;
-                remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
-            }
+            attachStreamToVideo(remoteVideoRef.current, currentRemoteStream, "remote", true);
         });
 
         peer.on("connect", () => {
@@ -329,7 +386,7 @@ export function VideoCall() {
         }
 
         isAcceptingRef.current = false;
-    }, [incomingCall, session?.user?.id, initStream, setActiveCall, setIncomingCall, cleanup, autoAnswer]);
+    }, [incomingCall, session?.user?.id, initStream, setActiveCall, setIncomingCall, cleanup, autoAnswer, attachStreamToVideo]);
 
     // Effect to subscribe to pusher events for signaling
     // IMPORTANT: This effect must NOT re-run when activeCall/incomingCall changes to avoid subscription churn
@@ -482,10 +539,11 @@ export function VideoCall() {
 
                 const peer = new SimplePeer({
                     initiator: true,
-                    trickle: true,
+                    trickle: false,
                     stream: myStream,
                     config: {
-                        iceServers: iceServers
+                        iceServers: iceServers,
+                        iceCandidatePoolSize: 10
                     }
                 });
 
@@ -535,11 +593,7 @@ export function VideoCall() {
                 peer.on("stream", (currentRemoteStream) => {
                     console.log("[VideoCall] Received remote stream (Caller)");
                     setRemoteStream(currentRemoteStream);
-
-                    if (remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = currentRemoteStream;
-                        remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
-                    }
+                    attachStreamToVideo(remoteVideoRef.current, currentRemoteStream, "remote", true);
 
                     // Log tracks for debugging black screen
                     const vTracks = currentRemoteStream.getVideoTracks();
@@ -597,7 +651,7 @@ export function VideoCall() {
                 isInitializingRef.current = false;
             });
         }
-    }, [activeCall, incomingCall, session?.user?.id, session?.user?.image, session?.user?.name, cleanup, initStream, activeChat]);
+    }, [activeCall, incomingCall, session?.user?.id, session?.user?.image, session?.user?.name, cleanup, initStream, activeChat, attachStreamToVideo]);
 
 
     const rejectIncomingCall = () => {
@@ -701,13 +755,26 @@ export function VideoCall() {
                     ref={setRemoteVideoRef}
                     autoPlay
                     playsInline
-                    className="w-full h-full object-cover"
+                    muted
+                    onPlaying={() => setIsRemoteVideoPlaying(true)}
+                    onPause={() => setIsRemoteVideoPlaying(false)}
+                    className="w-full h-full object-cover [filter:brightness(1.08)_contrast(1.02)]"
                 >
                     <track kind="captions" label="Captions" />
                 </video>
                 {!remoteStream && (
                     <div className="absolute inset-0 flex items-center justify-center text-white/50">
                         <p>Connecting...</p>
+                    </div>
+                )}
+                {remoteStream && remoteVideoUnavailable && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white/80 pointer-events-none">
+                        <p className="rounded-md bg-black/50 px-3 py-2 text-sm">Remote camera is off or unavailable</p>
+                    </div>
+                )}
+                {remoteStream && !remoteVideoUnavailable && !isRemoteVideoPlaying && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white/60 pointer-events-none">
+                        <p className="rounded-md bg-black/40 px-3 py-2 text-sm">Starting remote video...</p>
                     </div>
                 )}
 
