@@ -7,7 +7,7 @@ import { usePusher } from "@/components/providers/pusher-provider";
 import { useChatStore } from "@/store/chat-store";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Maximize2, Minimize2 } from "lucide-react";
+import { Phone, PhoneOff, Video, VideoOff, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function VideoCall() {
@@ -20,6 +20,7 @@ export function VideoCall() {
     const [isVideoPaused, setIsVideoPaused] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [isStealthMode, setIsStealthMode] = useState(false);
+    const streamRef = useRef<MediaStream | null>(null);
 
     // Use callback refs to handle video elements dynamically
     const setLocalVideoRef = useCallback((node: HTMLVideoElement | null) => {
@@ -55,25 +56,36 @@ export function VideoCall() {
 
     const queuedSignals = useRef<SignalData[]>([]);
 
+    useEffect(() => {
+        streamRef.current = stream;
+    }, [stream]);
+
     // cleanup on unmount or end call
     const cleanup = useCallback(() => {
         if (connectionRef.current) {
             connectionRef.current.destroy();
             connectionRef.current = null;
         }
-        if (stream) {
-            stream.getTracks().forEach(track => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => {
                 track.stop();
             });
-            setStream(null);
         }
+        streamRef.current = null;
+        setStream(null);
         setRemoteStream(null);
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
+        }
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+        }
         endCall();
         setIsStealthMode(false);
         queuedSignals.current = [];
         isInitializingRef.current = false;
         isAcceptingRef.current = false;
-    }, [stream, endCall]);
+    }, [endCall]);
 
     // Track if component is mounted to prevent state updates after unmount
     const isMounted = useRef(true);
@@ -105,6 +117,7 @@ export function VideoCall() {
 
             // Only update state if still mounted
             if (isMounted.current) {
+                streamRef.current = currentStream;
                 setStream(currentStream);
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = currentStream;
