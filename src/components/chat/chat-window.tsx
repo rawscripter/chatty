@@ -299,6 +299,21 @@ export function ChatWindow() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ messageIds: ids }),
                 });
+
+                // Best-effort: ask the server for the latest unread total so the
+                // Android home-screen badge stays accurate.
+                fetch("/api/unread", { cache: "no-store" })
+                    .then((r) => r.json())
+                    .then((j) => {
+                        const total = j?.data?.unreadTotal;
+                        if (typeof total !== "number") return;
+                        const nav: any = navigator;
+                        if (typeof nav?.setAppBadge === "function") {
+                            if (total > 0) nav.setAppBadge(total);
+                            else nav?.clearAppBadge?.();
+                        }
+                    })
+                    .catch(() => {});
             } catch (error) {
                 console.error("Failed to send read receipts:", error);
                 for (const id of ids) pendingReadMessageIdsRef.current.add(id);

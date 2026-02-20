@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PusherProvider } from "@/components/providers/pusher-provider";
 import { FontProvider } from "@/components/providers/font-provider";
 import { PwaRegister } from "@/components/pwa/pwa-register";
+import { AndroidBadgeSync } from "@/components/pwa/android-badge-sync";
 import { Toaster } from "sonner";
 
 
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <PwaRegister />
+        <AndroidBadgeSync />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
