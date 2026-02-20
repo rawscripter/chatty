@@ -350,10 +350,11 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     <div className="flex-1 min-h-[40px] py-2">
                         <TextareaAutosize
                             ref={textareaRef}
+                            autoFocus
                             minRows={1}
                             maxRows={6}
                             placeholder={replyTo ? "Type a reply..." : "Message..."}
-                            className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-base sm:text-[15px] leading-relaxed placeholder:text-muted-foreground/60"
+                            className="w-full bg-transparent resize-none border-0 focus:ring-0 focus:outline-none outline-none p-0 text-base leading-relaxed placeholder:text-muted-foreground/60"
                             value={message}
                             onChange={(e) => {
                                 setMessage(e.target.value);
