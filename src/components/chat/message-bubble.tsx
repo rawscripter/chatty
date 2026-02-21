@@ -368,7 +368,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
 
             {/* Avatar */}
             {!isMine && (
-                <Avatar className="w-8 h-8 border border-border/40">
+                <Avatar className="w-8 h-8 border border-border/90">
                     <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
                         {sender.name?.slice(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>
@@ -442,7 +442,7 @@ export function MessageBubble({ message, onViewOnce, onImageClick, onDelete, onR
                             } ${!noPadding && isMine
                                 ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-[6px] border border-white/10"
                                 : !noPadding
-                                    ? "bg-card text-card-foreground rounded-bl-[6px] border border-border/40"
+                                    ? "bg-card text-card-foreground rounded-bl-[6px] border border-border/90"
                                     : ""
                             }`}
                     >
