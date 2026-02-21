@@ -134,7 +134,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+            if (e.key === "/" && window.innerWidth > 768 && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
                 e.preventDefault();
                 textareaRef.current?.focus();
             }
@@ -375,7 +375,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     <div className="flex-1 min-h-[40px] py-2">
                         <TextareaAutosize
                             ref={textareaRef}
-                            autoFocus
+                            autoFocus={typeof window !== 'undefined' && window.innerWidth > 768}
                             minRows={1}
                             maxRows={6}
                             placeholder={replyTo ? "Type a reply..." : "Message..."}
