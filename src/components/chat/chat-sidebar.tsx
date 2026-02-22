@@ -229,7 +229,9 @@ export function ChatSidebar() {
                                             </div>
                                             <p className={`text-xs truncate leading-relaxed ${isActive ? "text-sidebar-foreground/80 font-medium" : "text-muted-foreground"
                                                 }`}>
-                                                {lastMessage ? (
+                                                {chat.isPasswordProtected ? (
+                                                    <span className="opacity-50 italic flex items-center gap-1">🔒 Chat locked</span>
+                                                ) : lastMessage ? (
                                                     <span>
                                                         {isMe && <span className="opacity-70">You: </span>}
                                                         {lastMessage.type === 'image' ? (
