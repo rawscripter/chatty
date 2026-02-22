@@ -92,6 +92,7 @@ export async function PATCH(req: NextRequest) {
 
         const intimateModeEnabledRaw = parsed.intimateModeEnabled;
         const hideNotificationPreviewsRaw = parsed.hideNotificationPreviews;
+        const appLockEnabledRaw = parsed.appLockEnabled;
 
         const privacyUpdates: Record<string, unknown> = {};
 
@@ -100,6 +101,9 @@ export async function PATCH(req: NextRequest) {
         }
         if (typeof hideNotificationPreviewsRaw === "boolean") {
             privacyUpdates["privacy.hideNotificationPreviews"] = hideNotificationPreviewsRaw;
+        }
+        if (typeof appLockEnabledRaw === "boolean") {
+            privacyUpdates["privacy.appLockEnabled"] = appLockEnabledRaw;
         }
 
         if (Object.keys(privacyUpdates).length === 0) {

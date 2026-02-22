@@ -3,6 +3,7 @@ import mongoose, { Schema, models, model } from "mongoose";
 export interface IUserPrivacySettings {
     intimateModeEnabled: boolean;
     hideNotificationPreviews: boolean;
+    appLockEnabled: boolean;
 }
 
 export interface IUserDocument extends mongoose.Document {
@@ -60,6 +61,10 @@ const UserSchema = new Schema<IUserDocument>(
             hideNotificationPreviews: {
                 type: Boolean,
                 default: true,
+            },
+            appLockEnabled: {
+                type: Boolean,
+                default: false,
             },
         },
     },

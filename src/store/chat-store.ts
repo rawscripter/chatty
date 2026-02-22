@@ -8,6 +8,7 @@ export type UiStyle = "default" | "glass";
 export interface PrivacySettings {
     intimateModeEnabled: boolean;
     hideNotificationPreviews: boolean;
+    appLockEnabled: boolean;
 }
 
 interface TypingUser {
@@ -106,6 +107,8 @@ export const useChatStore = create<ChatStore>()(
                     typeof window !== "undefined"
                         ? window.localStorage.getItem("chatty:privacy:hide-previews") !== "false"
                         : true,
+                appLockEnabled:
+                    typeof window !== "undefined" && window.localStorage.getItem("chatty:privacy:app-lock") === "true",
             },
             setPrivacy: (privacy) =>
                 set((state) => {
@@ -118,6 +121,10 @@ export const useChatStore = create<ChatStore>()(
                         window.localStorage.setItem(
                             "chatty:privacy:hide-previews",
                             next.hideNotificationPreviews ? "true" : "false"
+                        );
+                        window.localStorage.setItem(
+                            "chatty:privacy:app-lock",
+                            next.appLockEnabled ? "true" : "false"
                         );
                     }
                     return { privacy: next };

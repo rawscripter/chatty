@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Shield, EyeOff } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Shield, EyeOff, Lock } from "lucide-react";
 import { SessionManager } from "@/components/profile/session-manager";
 import { ThemeColorSelector } from "@/components/profile/theme-color-selector";
 import { useChatStore } from "@/store/chat-store";
@@ -60,7 +60,7 @@ export default function ProfilePage() {
 
         const fetchProfile = async () => {
             try {
-                const res = await fetch("/api/users/me");
+                const res = await fetch("/api/users/me", { cache: "no-store" });
                 const data = await res.json();
                 if (data.success) {
                     setProfileName(data.data.name || session.user.name || "");
@@ -68,11 +68,16 @@ export default function ProfilePage() {
 
                     // Sync privacy settings into local store (also controls message persistence behavior)
                     if (data.data.privacy) {
-                        setPrivacy({
-                            intimateModeEnabled: !!data.data.privacy.intimateModeEnabled,
-                            hideNotificationPreviews:
-                                data.data.privacy.hideNotificationPreviews !== false,
-                        });
+                        const p = data.data.privacy;
+                        const updates: Partial<typeof privacy> = {
+                            intimateModeEnabled: !!p.intimateModeEnabled,
+                            hideNotificationPreviews: p.hideNotificationPreviews !== false,
+                        };
+                        // Only overwrite appLockEnabled if the server actually returned the field
+                        if ("appLockEnabled" in p) {
+                            updates.appLockEnabled = !!p.appLockEnabled;
+                        }
+                        setPrivacy(updates);
                     }
                 }
             } catch (error) {
@@ -327,6 +332,27 @@ export default function ProfilePage() {
                             >
                                 <EyeOff className="w-4 h-4" />
                                 Hide notification previews {privacy.hideNotificationPreviews ? "On" : "Off"}
+                            </Button>
+
+                            <Button
+                                variant={privacy.appLockEnabled ? "default" : "ghost"}
+                                onClick={async () => {
+                                    const next = !privacy.appLockEnabled;
+                                    setPrivacy({ appLockEnabled: next });
+                                    try {
+                                        await fetch("/api/users/me", {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ appLockEnabled: next }),
+                                        });
+                                    } catch (e) {
+                                        console.error("Failed to update app lock", e);
+                                    }
+                                }}
+                                className="gap-2 justify-start"
+                            >
+                                <Lock className="w-4 h-4" />
+                                App Lock {privacy.appLockEnabled ? "On" : "Off"}
                             </Button>
                         </div>
 

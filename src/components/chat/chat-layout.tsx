@@ -37,6 +37,17 @@ export function ChatLayout() {
     const [passwordError, setPasswordError] = useState(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // App Lock state (separate from idle lock)
+    const [appLocked, setAppLocked] = useState(() => {
+        if (typeof window === "undefined") return false;
+        const enabled = window.localStorage.getItem("chatty:privacy:app-lock") === "true";
+        const alreadyUnlocked = window.sessionStorage.getItem("chatty:app-unlocked") === "true";
+        return enabled && !alreadyUnlocked;
+    });
+    const [appLockPassword, setAppLockPassword] = useState("");
+    const [appLockError, setAppLockError] = useState("");
+    const [appLockLoading, setAppLockLoading] = useState(false);
+
     const setLastActivity = useCallback((timestamp: number) => {
         if (typeof window === "undefined") return;
         window.localStorage.setItem(lastActivityKey, String(timestamp));
@@ -87,10 +98,18 @@ export function ChatLayout() {
             .then((j) => {
                 const p = j?.data?.privacy;
                 if (!p) return;
-                setPrivacy({
+                const updates: Record<string, boolean> = {
                     intimateModeEnabled: !!p.intimateModeEnabled,
                     hideNotificationPreviews: p.hideNotificationPreviews !== false,
-                });
+                };
+                if ("appLockEnabled" in p) {
+                    updates.appLockEnabled = !!p.appLockEnabled;
+                }
+                setPrivacy(updates);
+                // Check app lock from server truth
+                if (p.appLockEnabled && window.sessionStorage.getItem("chatty:app-unlocked") !== "true") {
+                    setAppLocked(true);
+                }
             })
             .catch(() => { });
 
@@ -206,7 +225,92 @@ export function ChatLayout() {
     return (
         <div className="flex h-[100dvh] overflow-hidden relative bg-background">
             {panicActive && <SafeScreen mode={panicMode} />}
-            {isLocked && (
+            {/* App Lock Screen */}
+            {appLocked && (
+                <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center">
+                    <div className="w-full max-w-sm px-6 text-center space-y-4">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                        </div>
+                        <p className="text-white text-lg font-semibold">App Locked</p>
+                        <p className="text-white/60 text-sm">Enter your account password to continue</p>
+                        <Input
+                            autoFocus
+                            type="password"
+                            value={appLockPassword}
+                            onChange={(event) => {
+                                setAppLockPassword(event.target.value);
+                                if (appLockError) setAppLockError("");
+                            }}
+                            onKeyDown={async (event) => {
+                                if (event.key === "Enter" && appLockPassword.trim()) {
+                                    setAppLockLoading(true);
+                                    setAppLockError("");
+                                    try {
+                                        const res = await fetch("/api/users/me/verify-password", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ password: appLockPassword }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            window.sessionStorage.setItem("chatty:app-unlocked", "true");
+                                            setAppLocked(false);
+                                            setAppLockPassword("");
+                                        } else {
+                                            setAppLockError(data.error || "Incorrect password");
+                                            setAppLockPassword("");
+                                        }
+                                    } catch {
+                                        setAppLockError("Network error. Try again.");
+                                    } finally {
+                                        setAppLockLoading(false);
+                                    }
+                                }
+                            }}
+                            placeholder="Password"
+                            className="bg-white/5 text-white border-white/20 focus-visible:ring-primary/40 focus-visible:ring-offset-black placeholder:text-white/30"
+                            disabled={appLockLoading}
+                        />
+                        {appLockError && (
+                            <p className="text-red-400 text-xs animate-pulse">{appLockError}</p>
+                        )}
+                        <button
+                            type="button"
+                            disabled={appLockLoading || !appLockPassword.trim()}
+                            onClick={async () => {
+                                setAppLockLoading(true);
+                                setAppLockError("");
+                                try {
+                                    const res = await fetch("/api/users/me/verify-password", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ password: appLockPassword }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                        window.sessionStorage.setItem("chatty:app-unlocked", "true");
+                                        setAppLocked(false);
+                                        setAppLockPassword("");
+                                    } else {
+                                        setAppLockError(data.error || "Incorrect password");
+                                        setAppLockPassword("");
+                                    }
+                                } catch {
+                                    setAppLockError("Network error. Try again.");
+                                } finally {
+                                    setAppLockLoading(false);
+                                }
+                            }}
+                            className="w-full mt-2 py-2.5 rounded-md bg-primary/80 hover:bg-primary active:bg-primary/90 text-white text-sm font-medium tracking-wide transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            {appLockLoading ? "Verifying..." : "Unlock"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {isLocked && !appLocked && (
                 <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
                     <div className="w-full max-w-sm px-6 text-center space-y-4">
                         <p className="text-white text-sm tracking-wide">Enter master password</p>

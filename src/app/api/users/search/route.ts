@@ -22,10 +22,7 @@ export async function GET(req: NextRequest) {
 
         const users = await User.find({
             _id: { $ne: session.user.id },
-            $or: [
-                { name: { $regex: query, $options: "i" } },
-                { email: { $regex: query, $options: "i" } },
-            ],
+            name: { $regex: query, $options: "i" },
         })
             .select("name email avatar isOnline lastSeen")
             .limit(20)

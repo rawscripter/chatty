@@ -258,7 +258,7 @@ function SearchUsersSection({
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search by name or email..."
+                    placeholder="Search by name..."
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="pl-9 h-10"
@@ -284,8 +284,8 @@ function SearchUsersSection({
                                         }
                                     }}
                                     className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors ${isSelected
-                                            ? "bg-emerald-500/10 border border-emerald-500/30"
-                                            : "hover:bg-muted/50 border border-transparent"
+                                        ? "bg-emerald-500/10 border border-emerald-500/30"
+                                        : "hover:bg-muted/50 border border-transparent"
                                         }`}
                                 >
                                     <Avatar className="w-9 h-9">
