@@ -486,7 +486,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                        className="absolute bottom-14 right-0 z-50 shadow-2xl rounded-3xl overflow-hidden border border-border/50"
+                                        className="fixed bottom-[80px] left-0 right-0 mx-auto w-[calc(100vw-16px)] max-w-[352px] z-50 shadow-2xl rounded-3xl overflow-hidden border border-border/50 md:absolute md:bottom-14 md:right-0 md:left-auto md:mx-0 md:w-auto md:max-w-none"
                                     >
                                         <Picker
                                             data={data}
