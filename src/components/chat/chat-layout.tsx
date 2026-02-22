@@ -26,6 +26,7 @@ export function ChatLayout() {
     const { data: session } = useSession();
     const { activeChat, setActiveChat, chats, setPrivacy, panicActive, panicMode } = useChatStore();
     const idleTimeoutMs = 120000;
+    // const idleTimeoutMs = 1000;
     const masterPasswordValue = "9";
     const idleLockKey = "chatty:idle-locked";
     const lastActivityKey = "chatty:last-activity";
@@ -33,6 +34,7 @@ export function ChatLayout() {
         getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs)
     );
     const [masterPassword, setMasterPassword] = useState("");
+    const [passwordError, setPasswordError] = useState(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const setLastActivity = useCallback((timestamp: number) => {
@@ -63,6 +65,7 @@ export function ChatLayout() {
         if (masterPassword === masterPasswordValue) {
             setIsLocked(false);
             setMasterPassword("");
+            setPasswordError(false);
             setLockedState(false);
             setLastActivity(Date.now());
             resetIdleTimer();
@@ -70,6 +73,8 @@ export function ChatLayout() {
         }
 
         setMasterPassword("");
+        setPasswordError(true);
+        setTimeout(() => setPasswordError(false), 2000);
     }, [masterPassword, resetIdleTimer, setLastActivity, setLockedState]);
 
     useEffect(() => {
@@ -217,7 +222,16 @@ export function ChatLayout() {
                             }}
                             className="bg-black text-white border-white/30 focus-visible:ring-white/40 focus-visible:ring-offset-black"
                         />
-                        <p className="text-white/60 text-xs">Press Enter to unlock</p>
+                        {passwordError && (
+                            <p className="text-red-400 text-xs animate-pulse">Wrong password</p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleUnlock}
+                            className="w-full mt-2 py-2.5 rounded-md bg-white/10 hover:bg-white/20 active:bg-white/25 text-white text-sm font-medium tracking-wide transition-colors duration-150"
+                        >
+                            Unlock
+                        </button>
                     </div>
                 </div>
             )}
