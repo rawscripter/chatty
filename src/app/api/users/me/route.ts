@@ -106,6 +106,11 @@ export async function PATCH(req: NextRequest) {
             privacyUpdates["privacy.appLockEnabled"] = appLockEnabledRaw;
         }
 
+        const inactivityLockEnabledRaw = parsed.inactivityLockEnabled;
+        if (typeof inactivityLockEnabledRaw === "boolean") {
+            privacyUpdates["privacy.inactivityLockEnabled"] = inactivityLockEnabledRaw;
+        }
+
         if (Object.keys(privacyUpdates).length === 0) {
             return NextResponse.json({ error: "No valid fields provided" }, { status: 400 });
         }

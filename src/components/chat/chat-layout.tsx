@@ -24,17 +24,18 @@ function getStoredLockState(
 
 export function ChatLayout() {
     const { data: session } = useSession();
-    const { activeChat, setActiveChat, chats, setPrivacy, panicActive, panicMode } = useChatStore();
+    const { activeChat, setActiveChat, chats, setPrivacy, panicActive, panicMode, privacy } = useChatStore();
     const idleTimeoutMs = 120000;
-    // const idleTimeoutMs = 1000;
-    const masterPasswordValue = "9";
     const idleLockKey = "chatty:idle-locked";
     const lastActivityKey = "chatty:last-activity";
-    const [isLocked, setIsLocked] = useState(() =>
-        getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs)
-    );
-    const [masterPassword, setMasterPassword] = useState("");
-    const [passwordError, setPasswordError] = useState(false);
+    const inactivityEnabled = privacy.inactivityLockEnabled;
+    const [isLocked, setIsLocked] = useState(() => {
+        if (!inactivityEnabled) return false;
+        return getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
+    });
+    const [idlePassword, setIdlePassword] = useState("");
+    const [idlePasswordError, setIdlePasswordError] = useState("");
+    const [idleUnlocking, setIdleUnlocking] = useState(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // App Lock state (separate from idle lock)
@@ -72,21 +73,33 @@ export function ChatLayout() {
         }, idleTimeoutMs);
     }, [setLastActivity, setLockedState]);
 
-    const handleUnlock = useCallback(() => {
-        if (masterPassword === masterPasswordValue) {
-            setIsLocked(false);
-            setMasterPassword("");
-            setPasswordError(false);
-            setLockedState(false);
-            setLastActivity(Date.now());
-            resetIdleTimer();
-            return;
+    const handleIdleUnlock = useCallback(async () => {
+        if (!idlePassword.trim()) return;
+        setIdleUnlocking(true);
+        setIdlePasswordError("");
+        try {
+            const res = await fetch("/api/users/me/verify-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: idlePassword }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsLocked(false);
+                setIdlePassword("");
+                setLockedState(false);
+                setLastActivity(Date.now());
+                resetIdleTimer();
+            } else {
+                setIdlePasswordError(data.error || "Incorrect password");
+                setIdlePassword("");
+            }
+        } catch {
+            setIdlePasswordError("Network error. Try again.");
+        } finally {
+            setIdleUnlocking(false);
         }
-
-        setMasterPassword("");
-        setPasswordError(true);
-        setTimeout(() => setPasswordError(false), 2000);
-    }, [masterPassword, resetIdleTimer, setLastActivity, setLockedState]);
+    }, [idlePassword, resetIdleTimer, setLastActivity, setLockedState]);
 
     useEffect(() => {
         if (!session) return;
@@ -105,6 +118,9 @@ export function ChatLayout() {
                 if ("appLockEnabled" in p) {
                     updates.appLockEnabled = !!p.appLockEnabled;
                 }
+                if ("inactivityLockEnabled" in p) {
+                    updates.inactivityLockEnabled = !!p.inactivityLockEnabled;
+                }
                 setPrivacy(updates);
                 // Check app lock from server truth
                 if (p.appLockEnabled && window.sessionStorage.getItem("chatty:app-unlocked") !== "true") {
@@ -113,17 +129,32 @@ export function ChatLayout() {
             })
             .catch(() => { });
 
-        const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
-        if (shouldLock) {
-            setIsLocked(true);
-            setLockedState(true);
+        if (inactivityEnabled) {
+            const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
+            if (shouldLock) {
+                setIsLocked(true);
+                setLockedState(true);
+            } else {
+                setLockedState(false);
+            }
         } else {
+            setIsLocked(false);
             setLockedState(false);
         }
-    }, [session, setLockedState, setPrivacy]);
+    }, [session, setLockedState, setPrivacy, inactivityEnabled]);
 
     useEffect(() => {
         if (!session) return;
+        if (!inactivityEnabled) {
+            // Inactivity lock disabled — clear any existing timer and unlock
+            if (idleTimerRef.current) {
+                clearTimeout(idleTimerRef.current);
+                idleTimerRef.current = null;
+            }
+            setIsLocked(false);
+            setLockedState(false);
+            return;
+        }
 
         const shouldLock = getStoredLockState(idleLockKey, lastActivityKey, idleTimeoutMs);
         if (shouldLock) {
@@ -155,7 +186,7 @@ export function ChatLayout() {
             window.removeEventListener("touchstart", handleActivity);
             window.removeEventListener("scroll", handleActivity);
         };
-    }, [session, isLocked, resetIdleTimer, setLockedState]);
+    }, [session, isLocked, resetIdleTimer, setLockedState, inactivityEnabled]);
 
     // 1. Initial Load & Deep Linking
     useEffect(() => {
@@ -313,28 +344,38 @@ export function ChatLayout() {
             {isLocked && !appLocked && (
                 <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
                     <div className="w-full max-w-sm px-6 text-center space-y-4">
-                        <p className="text-white text-sm tracking-wide">Enter master password</p>
+                        <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                        </div>
+                        <p className="text-white text-lg font-semibold">Session Locked</p>
+                        <p className="text-white/60 text-sm">Locked due to inactivity. Enter your password to continue.</p>
                         <Input
                             autoFocus
                             type="password"
-                            value={masterPassword}
-                            onChange={(event) => setMasterPassword(event.target.value)}
-                            onKeyDown={(event) => {
+                            value={idlePassword}
+                            onChange={(event) => {
+                                setIdlePassword(event.target.value);
+                                if (idlePasswordError) setIdlePasswordError("");
+                            }}
+                            onKeyDown={async (event) => {
                                 if (event.key === "Enter") {
-                                    handleUnlock();
+                                    handleIdleUnlock();
                                 }
                             }}
-                            className="bg-black text-white border-white/30 focus-visible:ring-white/40 focus-visible:ring-offset-black"
+                            placeholder="Password"
+                            className="bg-white/5 text-white border-white/20 focus-visible:ring-amber-500/40 focus-visible:ring-offset-black placeholder:text-white/30"
+                            disabled={idleUnlocking}
                         />
-                        {passwordError && (
-                            <p className="text-red-400 text-xs animate-pulse">Wrong password</p>
+                        {idlePasswordError && (
+                            <p className="text-red-400 text-xs animate-pulse">{idlePasswordError}</p>
                         )}
                         <button
                             type="button"
-                            onClick={handleUnlock}
-                            className="w-full mt-2 py-2.5 rounded-md bg-white/10 hover:bg-white/20 active:bg-white/25 text-white text-sm font-medium tracking-wide transition-colors duration-150"
+                            disabled={idleUnlocking || !idlePassword.trim()}
+                            onClick={() => handleIdleUnlock()}
+                            className="w-full mt-2 py-2.5 rounded-md bg-amber-500/80 hover:bg-amber-500 active:bg-amber-500/90 text-white text-sm font-medium tracking-wide transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            Unlock
+                            {idleUnlocking ? "Verifying..." : "Unlock"}
                         </button>
                     </div>
                 </div>

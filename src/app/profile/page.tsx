@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Shield, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2, Moon, Monitor, Sun, Shield, EyeOff, Lock, Timer } from "lucide-react";
 import { SessionManager } from "@/components/profile/session-manager";
 import { ThemeColorSelector } from "@/components/profile/theme-color-selector";
 import { useChatStore } from "@/store/chat-store";
@@ -76,6 +76,9 @@ export default function ProfilePage() {
                         // Only overwrite appLockEnabled if the server actually returned the field
                         if ("appLockEnabled" in p) {
                             updates.appLockEnabled = !!p.appLockEnabled;
+                        }
+                        if ("inactivityLockEnabled" in p) {
+                            updates.inactivityLockEnabled = !!p.inactivityLockEnabled;
                         }
                         setPrivacy(updates);
                     }
@@ -353,6 +356,27 @@ export default function ProfilePage() {
                             >
                                 <Lock className="w-4 h-4" />
                                 App Lock {privacy.appLockEnabled ? "On" : "Off"}
+                            </Button>
+
+                            <Button
+                                variant={privacy.inactivityLockEnabled ? "default" : "ghost"}
+                                onClick={async () => {
+                                    const next = !privacy.inactivityLockEnabled;
+                                    setPrivacy({ inactivityLockEnabled: next });
+                                    try {
+                                        await fetch("/api/users/me", {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ inactivityLockEnabled: next }),
+                                        });
+                                    } catch (e) {
+                                        console.error("Failed to update inactivity lock", e);
+                                    }
+                                }}
+                                className="gap-2 justify-start"
+                            >
+                                <Timer className="w-4 h-4" />
+                                Inactivity Lock {privacy.inactivityLockEnabled ? "On" : "Off"}
                             </Button>
                         </div>
 

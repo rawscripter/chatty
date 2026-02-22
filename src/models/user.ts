@@ -4,6 +4,7 @@ export interface IUserPrivacySettings {
     intimateModeEnabled: boolean;
     hideNotificationPreviews: boolean;
     appLockEnabled: boolean;
+    inactivityLockEnabled: boolean;
 }
 
 export interface IUserDocument extends mongoose.Document {
@@ -63,6 +64,10 @@ const UserSchema = new Schema<IUserDocument>(
                 default: true,
             },
             appLockEnabled: {
+                type: Boolean,
+                default: false,
+            },
+            inactivityLockEnabled: {
                 type: Boolean,
                 default: false,
             },
