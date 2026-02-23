@@ -156,7 +156,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
             // Compress image if it's not a GIF
             if (!isGif) {
                 const options = {
-                    maxSizeMB: 0.2, // ~200KB max
+                    maxSizeMB: 1.5, // Increased to ~1.5MB max for better quality
                     maxWidthOrHeight: 1920,
                     useWebWorker: true,
                 };
