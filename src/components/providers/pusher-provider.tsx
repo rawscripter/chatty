@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { pusherClient } from "@/lib/pusher-client";
+import { useChatStore } from "@/store/chat-store";
 
 interface PusherContextType {
     pusher: typeof pusherClient | null;
@@ -142,8 +143,23 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
             });
         });
 
+        // User channel for global updates
+        const userChannel = pusherClient.subscribe(`user-${session.user.id}`);
+        userChannel.bind("chat:update", (data: { chatId: string; message: any }) => {
+            const state = useChatStore.getState();
+            const existingChat = state.chats.find(c => c._id === data.chatId);
+            if (existingChat) {
+                state.updateChat({
+                    ...existingChat,
+                    lastMessage: data.message,
+                    updatedAt: data.message.createdAt || new Date()
+                });
+            }
+        });
+
         return () => {
             pusherClient.unsubscribe("presence-chat");
+            pusherClient.unsubscribe(`user-${session?.user?.id}`);
             pusherClient.unbind_all();
             pusherClient.disconnect();
         };

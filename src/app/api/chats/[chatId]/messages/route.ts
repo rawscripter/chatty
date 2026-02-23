@@ -294,10 +294,13 @@ export async function POST(
             }
         };
 
+        const allUserChannels = [`user-${session.user.id}`, ...recipients];
+
         // Fire and forget updates
         Promise.all([
             Chat.findByIdAndUpdate(chatId, { lastMessage: message._id }),
             pusherServer.trigger(`chat-${chatId}`, "message:new", messageObject),
+            pusherServer.trigger(allUserChannels, "chat:update", { chatId, message: messageObject }),
             pushNotificationPromise()
         ]).catch(err => console.error("Background task error:", err));
 

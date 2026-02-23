@@ -202,7 +202,9 @@ export const useChatStore = create<ChatStore>()(
                     const exists = state.messages.some((m) => m._id === message._id);
                     const replaced = state.messages.some((m) => m._id === messageId);
 
-                    if (exists) {
+                    if (exists && replaced) {
+                        return { messages: state.messages.filter((m) => m._id !== messageId) };
+                    } else if (exists) {
                         return state;
                     }
 

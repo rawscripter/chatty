@@ -175,7 +175,16 @@ export async function POST(
             .lean();
 
         // Trigger Pusher event
-        await pusherServer.trigger(`chat-${chatId}`, "message:new", populatedMessage);
+        const recipients = chat.participants
+            .filter((p: any) => p.toString() !== user._id.toString())
+            .map((p: any) => `user-${p.toString()}`);
+
+        const allUserChannels = [`user-${user._id}`, ...recipients];
+
+        await Promise.all([
+            pusherServer.trigger(`chat-${chatId}`, "message:new", populatedMessage),
+            pusherServer.trigger(allUserChannels, "chat:update", { chatId, message: populatedMessage })
+        ]).catch(err => console.error("Pusher trigger error:", err));
 
         return NextResponse.json({ success: true, data: populatedMessage }, { status: 201 });
     } catch (error) {
