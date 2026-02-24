@@ -351,6 +351,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 size="icon"
                                 variant="ghost"
                                 className="h-10 w-10 rounded-full bg-background/40 hover:bg-background hover:text-primary text-muted-foreground shrink-0 transition-all duration-200"
+                                aria-label="Attach file"
                             >
                                 <Plus className="w-5 h-5" />
                             </Button>
@@ -372,8 +373,10 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                     </DropdownMenu>
 
                     {/* Text Input Area */}
-                    <div className="flex-1 min-h-[40px] py-2">
+                    <div className="flex-1 min-h-[40px] py-2 relative">
+                        <label htmlFor="message-input" className="sr-only">Type a message</label>
                         <TextareaAutosize
+                            id="message-input"
                             ref={textareaRef}
                             autoFocus={typeof window !== 'undefined' && window.innerWidth > 768}
                             minRows={1}
@@ -477,6 +480,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                 variant="ghost"
                                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                 className={`h-9 w-9 rounded-full transition-colors ${showEmojiPicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-background/60'}`}
+                                aria-label="Choose emoji"
                             >
                                 <Smile className="w-5 h-5" />
                             </Button>
@@ -509,6 +513,7 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                     size="icon"
                                     variant="ghost"
                                     className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-background/60 transition-colors"
+                                    aria-label="More options"
                                 >
                                     <LayoutGrid className="w-5 h-5" />
                                 </Button>
@@ -564,6 +569,8 @@ export function MessageInput({ chatId, onSendMessage, replyTo, onCancelReply }: 
                                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                     }
                                 `}
+                                aria-label="Send message"
+                                title={(!message.trim() && !imageFile) ? "Type a message or select a file to send" : "Send message"}
                             >
                                 <Send className={`w-5 h-5 ml-0.5 ${message.trim() || imageFile ? 'animate-in zoom-in spin-in-12 duration-300' : ''}`} />
                             </Button>
